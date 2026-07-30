@@ -470,6 +470,9 @@ function updateControlledPlayerAppearance() {
 /*
     操作するロールを変更する。
 */
+/*
+    操作するロールを変更する。
+*/
 function selectControlledRole(role) {
     const roleExists =
         baseParty.some(
@@ -480,8 +483,26 @@ function selectControlledRole(role) {
         return;
     }
 
+    /*
+        すでに選択中のロールを押した場合は、
+        何もしない。
+    */
+    if (controlledRole === role) {
+        return;
+    }
+
     controlledRole = role;
 
+    /*
+        ロールボタンの選択表示を更新するため、
+        P3設定欄を作り直す。
+    */
+    renderPhaseOptions();
+
+    /*
+        パーティー、フィールド、タイマーなどを
+        新しい操作ロールに合わせて初期化する。
+    */
     resetBattleState();
 }
 
@@ -597,21 +618,31 @@ function renderPhaseOptions() {
 }
 
 function renderPhase3Options() {
-    const roleOptionsHtml =
+    /*
+        MT～D4の操作ロールボタンを作る。
+    */
+    const roleButtonsHtml =
         baseParty
             .map(member => {
-                const selectedAttribute =
+                const activeClass =
                     member.role === controlledRole
-                        ? "selected"
+                        ? "active"
                         : "";
 
                 return `
-                    <option
-                        value="${member.role}"
-                        ${selectedAttribute}
+                    <button
+                        type="button"
+                        class="controlled-role-button ${activeClass}"
+                        data-controlled-role="${member.role}"
                     >
-                        ${member.role}：${member.job}
-                    </option>
+                        <span class="controlled-role-name">
+                            ${member.role}
+                        </span>
+
+                        <span class="controlled-job-name">
+                            ${member.job}
+                        </span>
+                    </button>
                 `;
             })
             .join("");
@@ -619,17 +650,14 @@ function renderPhase3Options() {
     phaseOptions.innerHTML = `
         <div class="phase-option-box">
 
-            <div class="phase-option-row">
-                <label for="controlled-role-select">
-                    <strong>操作プレイヤー</strong>
-                </label>
+            <div class="phase-option-section">
+                <div class="phase-option-heading">
+                    操作プレイヤー
+                </div>
 
-                <select
-                    id="controlled-role-select"
-                    class="controlled-role-select"
-                >
-                    ${roleOptionsHtml}
-                </select>
+                <div class="controlled-role-buttons">
+                    ${roleButtonsHtml}
+                </div>
             </div>
 
             <div class="phase-option-row">
@@ -699,9 +727,12 @@ function renderPhase3Options() {
         </div>
     `;
 
-    const controlledRoleSelect =
-        document.getElementById(
-            "controlled-role-select"
+    /*
+        今作成した操作ロールボタンを取得する。
+    */
+    const controlledRoleButtons =
+        document.querySelectorAll(
+            ".controlled-role-button"
         );
 
     const modeButtons =
@@ -719,15 +750,24 @@ function renderPhase3Options() {
             "assign-debuff-button"
         );
 
-    controlledRoleSelect.addEventListener(
-        "change",
-        function() {
-            selectControlledRole(
-                this.value
-            );
-        }
-    );
+    /*
+        操作ロールボタンを押したときの処理。
+    */
+    controlledRoleButtons.forEach(button => {
+        button.addEventListener(
+            "click",
+            function() {
+                selectControlledRole(
+                    this.dataset.controlledRole
+                );
+            }
+        );
+    });
 
+    /*
+        「自分だけ指定」を選んだときだけ、
+        デバフ選択欄を使用可能にする。
+    */
     modeButtons.forEach(button => {
         button.addEventListener(
             "change",
@@ -1650,3 +1690,4 @@ clearActionGuide();
 updateActionGuideVisibility();
 
 requestAnimationFrame(gameLoop);
+

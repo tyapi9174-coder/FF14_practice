@@ -828,3 +828,104 @@ body {
     font-weight: 900;
     white-space: nowrap;
 }
+
+/* =========================
+   操作ロールボタン
+========================= */
+
+.phase-option-section {
+    width: 100%;
+}
+
+.phase-option-heading {
+    margin-bottom: 10px;
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.controlled-role-buttons {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(90px, 1fr));
+
+    gap: 8px;
+}
+
+.controlled-role-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 52px;
+    padding: 7px 8px;
+
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 7px;
+
+    background:
+        rgba(20, 23, 29, 0.95);
+
+    color: #ffffff;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+}
+
+.controlled-role-button:hover {
+    border-color:
+        rgba(255, 216, 74, 0.7);
+
+    background:
+        rgba(48, 45, 30, 0.95);
+
+    transform: translateY(-1px);
+}
+
+.controlled-role-button.active {
+    border-color: #ffd84a;
+
+    background:
+        rgba(92, 76, 22, 0.95);
+
+    box-shadow:
+        0 0 10px
+        rgba(255, 216, 74, 0.4);
+}
+
+.controlled-role-name {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.controlled-job-name {
+    margin-top: 4px;
+
+    color: rgba(255, 255, 255, 0.72);
+
+    font-size: 10px;
+    line-height: 1.1;
+}
+
+.controlled-role-button.active
+.controlled-job-name {
+    color: #fff1ad;
+}
+
+/*
+    画面幅が狭い場合は、
+    2列に変更する。
+*/
+@media (max-width: 850px) {
+    .controlled-role-buttons {
+        grid-template-columns:
+            repeat(2, minmax(90px, 1fr));
+    }
+}

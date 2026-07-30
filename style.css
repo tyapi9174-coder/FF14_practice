@@ -1,0 +1,184 @@
+body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: #202225;
+    color: white;
+    font-family: sans-serif;
+}
+
+.page-header {
+    padding: 20px 20px 12px;
+    text-align: center;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 32px;
+    line-height: 1.2;
+}
+
+#battle-timer {
+    margin-top: 8px;
+    font-size: 42px;
+    line-height: 1;
+    font-family: monospace;
+    color: #66ddff;
+}
+
+.main-layout {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 110px;
+    padding: 22px 30px 30px;
+}
+
+.party-panel {
+    width: 340px;
+}
+
+.party-panel h2,
+.field-panel h2 {
+    margin: 0 0 10px;
+    font-size: 26px;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.control-buttons button {
+    flex: 1;
+    padding: 8px 6px;
+    background-color: #3a3a3a;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.control-buttons button:hover {
+    background-color: #505050;
+}
+
+.party-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    min-height: 56px;
+    padding: 8px;
+    margin-bottom: 6px;
+    background-color: #2c2f33;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.member-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.role {
+    color: #66ddff;
+    font-weight: bold;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.job {
+    margin-top: 6px;
+    font-size: 16px;
+}
+
+.debuff-list {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 150px;
+}
+
+.debuff-item {
+    width: 48px;
+    text-align: center;
+}
+
+.debuff-name {
+    padding: 3px 2px;
+    background-color: #a83232;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.debuff-time {
+    margin-top: 3px;
+    font-size: 12px;
+}
+
+.no-debuff {
+    color: #888;
+    font-size: 12px;
+}
+
+.field-panel {
+    width: 560px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.field {
+    position: relative;
+    width: 480px;
+    height: 480px;
+    box-sizing: border-box;
+
+    border: 3px solid white;
+    border-radius: 50%;
+    background-color: #2c2f33;
+
+    overflow: hidden;
+}
+
+#player {
+    position: absolute;
+
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background-color: #66ddff;
+    border: 3px solid white;
+    border-radius: 50%;
+
+    box-sizing: border-box;
+    font-weight: bold;
+
+    box-shadow: 0 0 12px rgba(102, 221, 255, 0.8);
+}
+
+#player span {
+    color: #102027;
+    font-size: 9px;
+    pointer-events: none;
+}
+
+@media screen and (max-width: 1050px) {
+    .main-layout {
+        flex-direction: column;
+        align-items: center;
+        gap: 30px;
+    }
+
+    .party-panel,
+    .field-panel {
+        width: 100%;
+        max-width: 560px;
+    }
+}

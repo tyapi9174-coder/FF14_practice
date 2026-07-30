@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>FF14 Practice Simulator</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header class="page-header">
+        <h1>FF14 Raid Practice Simulator</h1>
+        <h2 id="battle-timer">00.0</h2>
+    </header>
+
+    <main class="main-layout">
+
+        <section class="party-panel">
+
+            <h2>PARTY</h2>
+
+            <div class="control-buttons">
+                <button id="start-button">スタート</button>
+                <button id="pause-button">一時停止</button>
+                <button id="reset-button">リセット</button>
+            </div>
+
+            <div id="party-list"></div>
+
+        </section>
+
+        <section class="field-panel">
+            <h2>FIELD</h2>
+
+        <div class="field">
+            <div id="player">
+                <span>YOU</span>
+        </div>
+</div>
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -16,13 +16,19 @@
 <body>
     <header class="page-header">
         <h1>FF14 Raid Practice Simulator</h1>
-        <h2 id="battle-timer">00.0</h2>
+
+        <h2 id="battle-timer">
+            00.0
+        </h2>
     </header>
 
     <!-- コンテンツ・フェーズ選択 -->
     <section class="setup-panel">
+
         <div class="setup-row">
-            <label for="content-select">コンテンツ</label>
+            <label for="content-select">
+                コンテンツ
+            </label>
 
             <select id="content-select">
                 <option value="ultimate-eden">
@@ -32,25 +38,42 @@
         </div>
 
         <div class="phase-selector">
-            <button class="phase-button" data-phase="P1">
+
+            <button
+                class="phase-button"
+                data-phase="P1"
+            >
                 P1
             </button>
 
-            <button class="phase-button" data-phase="P2">
+            <button
+                class="phase-button"
+                data-phase="P2"
+            >
                 P2
             </button>
 
-            <button class="phase-button active" data-phase="P3">
+            <button
+                class="phase-button active"
+                data-phase="P3"
+            >
                 P3
             </button>
 
-            <button class="phase-button" data-phase="P4">
+            <button
+                class="phase-button"
+                data-phase="P4"
+            >
                 P4
             </button>
 
-            <button class="phase-button" data-phase="P5">
+            <button
+                class="phase-button"
+                data-phase="P5"
+            >
                 P5
             </button>
+
         </div>
 
         <div id="phase-title">
@@ -59,37 +82,104 @@
 
         <!-- フェーズごとに内容が変わる場所 -->
         <div id="phase-options"></div>
+
     </section>
 
+    <!--
+        PARTY / FIELD / ACTION GUIDE
+        の3列レイアウト
+    -->
     <main class="main-layout">
 
+        <!-- パーティー一覧 -->
         <section class="party-panel">
-            <h2>PARTY</h2>
 
-            <div class="control-buttons">
-                <button id="start-button">スタート</button>
-                <button id="pause-button">一時停止</button>
-                <button id="reset-button">リセット</button>
+            <div class="party-panel-header">
+                <h2>PARTY</h2>
+
+                <div class="control-buttons">
+
+                    <button id="start-button">
+                        スタート
+                    </button>
+
+                    <button id="pause-button">
+                        一時停止
+                    </button>
+
+                    <button id="reset-button">
+                        リセット
+                    </button>
+
+                </div>
             </div>
 
             <div id="party-list"></div>
+
         </section>
 
+        <!-- フィールド -->
         <section class="field-panel">
+
             <h2>FIELD</h2>
 
             <div class="field">
+
                 <div id="player">
                     <span>YOU</span>
                 </div>
+
             </div>
+
+        </section>
+
+        <!-- 自分の①～⑥の行動表示 -->
+        <section
+            id="action-guide"
+            class="action-guide"
+        >
+
+            <div class="action-guide-header">
+
+                <div>
+                    <div class="action-guide-label">
+                        あなたの動き
+                    </div>
+
+                    <h3 id="action-guide-title">
+                        デバフ未配布
+                    </h3>
+                </div>
+
+                <div
+                    id="action-guide-role"
+                    class="action-guide-role"
+                >
+                    TH
+                </div>
+
+            </div>
+
+            <ol
+                id="action-guide-list"
+                class="action-guide-list"
+            >
+                <li class="action-guide-empty">
+                    P3のデバフを配布すると、
+                    ①〜⑥の動きが表示されます。
+                </li>
+            </ol>
+
         </section>
 
     </main>
 
-<script src="data/debuffData.js"></script>
-<script src="data/phase3Patterns.js"></script>
-<script src="script.js"></script>
+    <script src="data/debuffData.js"></script>
 
+    <script src="data/phase3Patterns.js"></script>
+
+    <script src="data/phase3Actions.js"></script>
+
+    <script src="script.js"></script>
 </body>
 </html>

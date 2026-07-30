@@ -158,6 +158,25 @@ const phaseOptions =
 
 const phaseButtons =
     document.querySelectorAll(".phase-button");
+    const actionGuide =
+    document.getElementById(
+        "action-guide"
+    );
+
+const actionGuideTitle =
+    document.getElementById(
+        "action-guide-title"
+    );
+
+const actionGuideRole =
+    document.getElementById(
+        "action-guide-role"
+    );
+
+const actionGuideList =
+    document.getElementById(
+        "action-guide-list"
+    );
 
 /* =========================
    全体状態
@@ -168,11 +187,52 @@ let selectedPhase = "P3";
 let timerId = null;
 let battleTime = 0;
 
+/*
+    P3の①〜⑥の時間区切り。
+
+    endTimeに到達すると、
+    次の行動へ切り替わる。
+*/
+const phase3ActionTimeline = [
+    {
+        step: 1,
+        startTime: 0,
+        endTime: 11
+    },
+    {
+        step: 2,
+        startTime: 11,
+        endTime: 16
+    },
+    {
+        step: 3,
+        startTime: 16,
+        endTime: 21
+    },
+    {
+        step: 4,
+        startTime: 21,
+        endTime: 26
+    },
+    {
+        step: 5,
+        startTime: 26,
+        endTime: 31
+    },
+    {
+        step: 6,
+        startTime: 31,
+        endTime: 40
+    }
+];
+
+let currentActionStep = null;
+
 /* =========================
    プレイヤー設定
 ========================= */
 
-const controlledRole = "ST";
+let controlledRole = "ST";
 
 let playerX = 240;
 let playerY = 240;
@@ -196,12 +256,131 @@ let previousAnimationTime = null;
 
 const fieldPositions = {
     MT: { x: 240, y: 75 },
+    ST: { x: 240, y: 240 },
     H1: { x: 120, y: 145 },
     H2: { x: 360, y: 145 },
     D1: { x: 90, y: 285 },
     D2: { x: 390, y: 285 },
     D3: { x: 155, y: 390 },
     D4: { x: 325, y: 390 }
+};
+
+/* =========================
+   P3専用フィールドデータ
+========================= */
+
+/*
+    フィールドは480 × 480。
+    中心は x:240、y:240。
+
+    markerPointsのidは、
+    将来の正解位置判定でも使用する。
+*/
+const phase3FieldData = {
+    center: {
+        x: 240,
+        y: 240
+    },
+
+    /*
+        黄色線。
+
+        northが二等辺三角形の頂点方向。
+        この方向を画面上の北として扱う。
+    */
+yellowPoints: [
+    {
+        id: "north",
+        x: 240,
+        y: 75
+    },
+    {
+        id: "southWest",
+        x: 130,
+        y: 350
+    },
+    {
+        id: "southEast",
+        x: 350,
+        y: 350
+    }
+],
+
+    /*
+        紫線。
+
+        現時点では東西方向の基準線として仮配置。
+        実際の見た目に合わせて後から座標調整可能。
+    */
+    purplePoints: [
+        {
+            id: "west",
+            x: 70,
+            y: 240
+        },
+        {
+            id: "east",
+            x: 410,
+            y: 240
+        }
+    ],
+
+    /*
+        緑玉8個。
+
+        idを使って、
+        「北西玉が正解」などの判定を作れる。
+    */
+    markerPoints: [
+        {
+            id: "north",
+            label: "北",
+            x: 240,
+            y: 75
+        },
+        {
+            id: "northEast",
+            label: "北東",
+            x: 350,
+            y: 130
+        },
+        {
+            id: "east",
+            label: "東",
+            x: 405,
+            y: 240
+        },
+        {
+            id: "southEast",
+            label: "南東",
+            x: 350,
+            y: 350
+        },
+        {
+            id: "south",
+            label: "南",
+            x: 240,
+            y: 405
+        },
+        {
+            id: "southWest",
+            label: "南西",
+            x: 130,
+            y: 350
+        },
+        {
+            id: "west",
+            label: "西",
+            x: 75,
+            y: 240
+        },
+        {
+            id: "northWest",
+            label: "北西",
+            x: 130,
+            y: 130
+        }
+    ]
 };
 
 /* =========================
@@ -223,6 +402,88 @@ function getRoleType(role) {
 
     return "dps";
 }
+/*
+    P3行動データ用のロール分類。
+
+    MT・ST・H1・H2はTH。
+    D1～D4はDPS。
+*/
+function getActionRoleGroup(role) {
+    const thRoles = [
+        "MT",
+        "ST",
+        "H1",
+        "H2"
+    ];
+
+    if (thRoles.includes(role)) {
+        return "TH";
+    }
+
+    return "DPS";
+}
+
+/*
+    現在操作しているパーティーメンバーを取得する。
+*/
+function getControlledMember() {
+    return party.find(
+        member => member.role === controlledRole
+    );
+}
+
+/*
+    フィールド上の操作キャラクター表示を更新する。
+*/
+function updateControlledPlayerAppearance() {
+    const controlledMember =
+        getControlledMember();
+
+    if (!controlledMember) {
+        return;
+    }
+
+    player.classList.remove(
+        "tank",
+        "healer",
+        "dps"
+    );
+
+    player.classList.add(
+        getRoleType(controlledRole)
+    );
+
+    player.dataset.role =
+        controlledRole;
+
+    player.innerHTML = `
+        <span class="player-role">
+            ${controlledRole}
+        </span>
+
+        <span class="player-you-label">
+            YOU
+        </span>
+    `;
+}
+
+/*
+    操作するロールを変更する。
+*/
+function selectControlledRole(role) {
+    const roleExists =
+        baseParty.some(
+            member => member.role === role
+        );
+
+    if (!roleExists) {
+        return;
+    }
+
+    controlledRole = role;
+
+    resetBattleState();
+}
 
 function getRandomItem(array) {
     const randomIndex =
@@ -231,8 +492,67 @@ function getRandomItem(array) {
     return array[randomIndex];
 }
 
-function getPhase3SetKeys() {
-    return Object.keys(phase3DebuffSets);
+/* P3パターン内のデバフを画面表示用へ変換する */
+function convertPatternDebuffs(patternDebuffs) {
+    return patternDebuffs.map(debuff => {
+        const dictionaryData =
+            debuffDictionary[debuff.type];
+
+        return {
+            name: dictionaryData
+                ? dictionaryData.shortName
+                : debuff.type,
+
+            time: debuff.time
+        };
+    });
+}
+
+/* 自分のファイガ／ブリザガ種類を調べる */
+function getPhase3AssignmentType(patternDebuffs) {
+    const blizzardDebuff =
+        patternDebuffs.find(
+            debuff => debuff.type === "blizzard"
+        );
+
+    if (blizzardDebuff) {
+        return "blizzard";
+    }
+
+    const fireDebuff =
+        patternDebuffs.find(
+            debuff => debuff.type === "fire"
+        );
+
+    if (!fireDebuff) {
+        return null;
+    }
+
+    if (fireDebuff.time === 11) {
+        return "earlyFire";
+    }
+
+    if (fireDebuff.time === 21) {
+        return "middleFire";
+    }
+
+    if (fireDebuff.time === 31) {
+        return "lateFire";
+    }
+
+    return null;
+}
+
+/* 配列からランダムに1つ取得する */
+function getRandomPattern(patterns) {
+    if (patterns.length === 0) {
+        return null;
+    }
+
+    const randomIndex =
+        Math.floor(Math.random() * patterns.length);
+
+    return patterns[randomIndex];
 }
 
 /* =========================
@@ -257,6 +577,8 @@ function selectPhase(phase) {
 
     resetBattleState();
     renderPhaseOptions();
+    renderPhaseField();
+    updateActionGuideVisibility();
 }
 
 function renderPhaseOptions() {
@@ -275,8 +597,40 @@ function renderPhaseOptions() {
 }
 
 function renderPhase3Options() {
+    const roleOptionsHtml =
+        baseParty
+            .map(member => {
+                const selectedAttribute =
+                    member.role === controlledRole
+                        ? "selected"
+                        : "";
+
+                return `
+                    <option
+                        value="${member.role}"
+                        ${selectedAttribute}
+                    >
+                        ${member.role}：${member.job}
+                    </option>
+                `;
+            })
+            .join("");
+
     phaseOptions.innerHTML = `
         <div class="phase-option-box">
+
+            <div class="phase-option-row">
+                <label for="controlled-role-select">
+                    <strong>操作プレイヤー</strong>
+                </label>
+
+                <select
+                    id="controlled-role-select"
+                    class="controlled-role-select"
+                >
+                    ${roleOptionsHtml}
+                </select>
+            </div>
 
             <div class="phase-option-row">
                 <strong>配布モード</strong>
@@ -306,7 +660,10 @@ function renderPhase3Options() {
                     自分のデバフ
                 </label>
 
-                <select id="self-debuff-select" disabled>
+                <select
+                    id="self-debuff-select"
+                    disabled
+                >
                     <option value="earlyFire">
                         早ファイガ
                     </option>
@@ -330,10 +687,22 @@ function renderPhase3Options() {
                 >
                     デバフ配布
                 </button>
+
+                <div
+                    id="assigned-pattern-name"
+                    class="preparing-message"
+                >
+                    使用パターン：未配布
+                </div>
             </div>
 
         </div>
     `;
+
+    const controlledRoleSelect =
+        document.getElementById(
+            "controlled-role-select"
+        );
 
     const modeButtons =
         document.querySelectorAll(
@@ -349,6 +718,15 @@ function renderPhase3Options() {
         document.getElementById(
             "assign-debuff-button"
         );
+
+    controlledRoleSelect.addEventListener(
+        "change",
+        function() {
+            selectControlledRole(
+                this.value
+            );
+        }
+    );
 
     modeButtons.forEach(button => {
         button.addEventListener(
@@ -367,6 +745,199 @@ function renderPhase3Options() {
 }
 
 /* =========================
+   P3行動ガイド
+========================= */
+
+function createActionGuideHtml(actions) {
+    return actions
+        .map(action => {
+            const detailHtml =
+                action.detail
+                    ? `
+                        <div class="action-guide-detail">
+                            ${action.detail}
+                        </div>
+                    `
+                    : "";
+
+            return `
+                <li
+                    class="action-guide-item"
+                    data-action-step="${action.step}"
+                >
+                    <div class="action-guide-number">
+                        ${action.step}
+                    </div>
+
+                    <div class="action-guide-content">
+                        <div class="action-guide-text">
+                            ${action.text}
+                        </div>
+
+                        ${detailHtml}
+                    </div>
+                </li>
+            `;
+        })
+        .join("");
+}
+
+function renderPhase3ActionGuide(
+    assignmentType
+) {
+    const roleGroup =
+        getActionRoleGroup(
+            controlledRole
+        );
+
+    const roleActionData =
+        phase3ActionData[roleGroup];
+
+    if (!roleActionData) {
+        clearActionGuide(
+            "対応するロールデータがありません。"
+        );
+
+        return;
+    }
+
+    const selectedActionData =
+        roleActionData[assignmentType];
+
+    if (!selectedActionData) {
+        clearActionGuide(
+            "対応する行動データがありません。"
+        );
+
+        return;
+    }
+
+    actionGuide.style.display = "";
+
+    actionGuideTitle.textContent =
+        selectedActionData.label;
+
+    actionGuideRole.textContent =
+        roleGroup;
+
+    actionGuideList.innerHTML =
+        createActionGuideHtml(
+            selectedActionData.actions
+        );
+
+        currentActionStep = 1;
+        updatePhase3ActionGuide();
+}
+
+function clearActionGuide(
+    message =
+        "P3のデバフを配布すると、①〜⑥の動きが表示されます。"
+) {
+    actionGuideTitle.textContent =
+        selectedPhase === "P3"
+            ? "デバフ未配布"
+            : "このフェーズは準備中";
+
+    actionGuideRole.textContent =
+        getActionRoleGroup(
+            controlledRole
+        );
+
+    actionGuideList.innerHTML = `
+        <li class="action-guide-empty">
+            ${message}
+        </li>
+    `;
+}
+
+function updateActionGuideVisibility() {
+    actionGuide.style.display =
+        selectedPhase === "P3"
+            ? ""
+            : "none";
+}
+
+/*
+    現在時刻から、
+    今どの行動番号かを取得する。
+*/
+function getCurrentPhase3ActionStep(time) {
+    const currentTimeline =
+        phase3ActionTimeline.find(item => {
+            return (
+                time >= item.startTime &&
+                time < item.endTime
+            );
+        });
+
+    if (!currentTimeline) {
+        return null;
+    }
+
+    return currentTimeline.step;
+}
+
+/*
+    ①〜⑥の見た目を更新する。
+*/
+function updatePhase3ActionGuide() {
+    if (selectedPhase !== "P3") {
+        return;
+    }
+
+    const actionItems =
+        actionGuideList.querySelectorAll(
+            ".action-guide-item"
+        );
+
+    if (actionItems.length === 0) {
+        return;
+    }
+
+    const newActionStep =
+        getCurrentPhase3ActionStep(
+            battleTime
+        );
+
+    currentActionStep =
+        newActionStep;
+
+    actionItems.forEach(item => {
+        const itemStep =
+            Number(
+                item.dataset.actionStep
+            );
+
+        item.classList.remove(
+            "current",
+            "completed"
+        );
+
+        if (newActionStep === null) {
+            if (battleTime >= 40) {
+                item.classList.add(
+                    "completed"
+                );
+            }
+
+            return;
+        }
+
+        if (itemStep < newActionStep) {
+            item.classList.add(
+                "completed"
+            );
+        }
+
+        if (itemStep === newActionStep) {
+            item.classList.add(
+                "current"
+            );
+        }
+    });
+}
+
+/* =========================
    P3デバフ配布
 ========================= */
 
@@ -375,42 +946,118 @@ function assignPhase3Debuffs() {
         return;
     }
 
-    const selectedMode =
+    const selectedModeInput =
         document.querySelector(
             'input[name="assignment-mode"]:checked'
-        ).value;
+        );
 
-    const selectedSelfSet =
+    const selfDebuffSelect =
         document.getElementById(
             "self-debuff-select"
-        ).value;
+        );
 
-    const setKeys = getPhase3SetKeys();
+    if (
+        !selectedModeInput ||
+        !selfDebuffSelect
+    ) {
+        return;
+    }
+
+    const selectedMode =
+        selectedModeInput.value;
+
+    const selectedSelfType =
+        selfDebuffSelect.value;
+
+    let availablePatterns =
+        [...phase3Patterns];
+
+    /*
+        自分だけ指定の場合は、
+        STに指定したファイガ／ブリザガがある
+        パターンだけへ絞り込む。
+    */
+    if (selectedMode === "specified") {
+        availablePatterns =
+            phase3Patterns.filter(pattern => {
+                const selfAssignment =
+                    pattern.assignments[
+                        controlledRole
+                    ];
+
+                if (!selfAssignment) {
+                    return false;
+                }
+
+                const assignmentType =
+                    getPhase3AssignmentType(
+                        selfAssignment
+                    );
+
+                return (
+                    assignmentType ===
+                    selectedSelfType
+                );
+            });
+    }
+
+    const selectedPattern =
+        getRandomPattern(availablePatterns);
+
+    if (!selectedPattern) {
+        alert(
+            "指定した条件に合うパターンがありません。"
+        );
+
+        return;
+    }
 
     party.forEach(member => {
-        let assignedSetKey;
+        const patternDebuffs =
+            selectedPattern.assignments[
+                member.role
+            ];
 
-        if (
-            selectedMode === "specified" &&
-            member.role === controlledRole
-        ) {
-            assignedSetKey = selectedSelfSet;
-        } else {
-            assignedSetKey =
-                getRandomItem(setKeys);
+        if (!patternDebuffs) {
+            member.debuffs = [];
+            return;
         }
 
-        member.debuffs = cloneData(
-            phase3DebuffSets[
-                assignedSetKey
-            ].debuffs
-        );
+        member.debuffs =
+            convertPatternDebuffs(
+                patternDebuffs
+            );
     });
 
     battleTime = 0;
     battleTimer.textContent = "00.0";
 
+    const patternNameElement =
+        document.getElementById(
+            "assigned-pattern-name"
+        );
+
+    if (patternNameElement) {
+        patternNameElement.textContent =
+            `使用パターン：${selectedPattern.name}`;
+    }
+
     renderParty();
+
+const selfPatternDebuffs =
+    selectedPattern.assignments[
+        controlledRole
+    ];
+
+const selfAssignmentType =
+    getPhase3AssignmentType(
+        selfPatternDebuffs
+    );
+
+renderPhase3ActionGuide(
+    selfAssignmentType
+);
+
 }
 
 /* =========================
@@ -445,8 +1092,27 @@ function renderParty() {
     partyList.innerHTML = "";
 
     party.forEach(member => {
+        const isControlled =
+            member.role === controlledRole;
+
+        const controlledClass =
+            isControlled
+                ? "is-controlled"
+                : "";
+
+        const youBadgeHtml =
+            isControlled
+                ? `
+                    <span class="you-badge">
+                        YOU
+                    </span>
+                `
+                : "";
+
         partyList.innerHTML += `
-            <div class="party-member">
+            <div
+                class="party-member ${controlledClass}"
+            >
                 <div class="member-info">
                     <span class="role">
                         ${member.role}
@@ -455,6 +1121,8 @@ function renderParty() {
                     <span class="job">
                         ${member.job}
                     </span>
+
+                    ${youBadgeHtml}
                 </div>
 
                 <div class="debuff-list">
@@ -518,6 +1186,163 @@ function renderFieldMembers() {
 }
 
 /* =========================
+   P3専用フィールド表示
+========================= */
+
+function createSvgLine(
+    startX,
+    startY,
+    endX,
+    endY,
+    className
+) {
+    return `
+        <line
+            x1="${startX}"
+            y1="${startY}"
+            x2="${endX}"
+            y2="${endY}"
+            class="${className}"
+        ></line>
+    `;
+}
+
+function createP3MarkerHtml(marker) {
+    return `
+        <g
+            class="p3-marker"
+            data-marker-id="${marker.id}"
+            data-marker-label="${marker.label}"
+        >
+            <circle
+                cx="${marker.x}"
+                cy="${marker.y}"
+                r="17"
+                class="p3-green-orb"
+            ></circle>
+
+            <circle
+                cx="${marker.x - 4}"
+                cy="${marker.y - 5}"
+                r="5"
+                class="p3-green-orb-inner"
+            ></circle>
+        </g>
+    `;
+}
+
+function renderPhaseField() {
+    const oldPhaseField =
+        field.querySelector(
+            ".p3-field-object"
+        );
+
+    if (oldPhaseField) {
+        oldPhaseField.remove();
+    }
+
+    field.classList.toggle(
+        "p3-active",
+        selectedPhase === "P3"
+    );
+
+    if (selectedPhase !== "P3") {
+        return;
+    }
+
+    const center =
+        phase3FieldData.center;
+
+    const yellowLinesHtml =
+        phase3FieldData.yellowPoints
+            .map(point => {
+                return createSvgLine(
+                    center.x,
+                    center.y,
+                    point.x,
+                    point.y,
+                    "p3-yellow-line"
+                );
+            })
+            .join("");
+
+    const purpleLinesHtml =
+        phase3FieldData.purplePoints
+            .map(point => {
+                return createSvgLine(
+                    center.x,
+                    center.y,
+                    point.x,
+                    point.y,
+                    "p3-purple-line"
+                );
+            })
+            .join("");
+
+    const markersHtml =
+        phase3FieldData.markerPoints
+            .map(createP3MarkerHtml)
+            .join("");
+
+    const phaseField =
+        document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg"
+        );
+
+    phaseField.setAttribute(
+        "class",
+        "p3-field-object"
+    );
+
+    phaseField.setAttribute(
+        "viewBox",
+        "0 0 480 480"
+    );
+
+    phaseField.setAttribute(
+        "aria-label",
+        "P3基準オブジェクト"
+    );
+
+    phaseField.innerHTML = `
+        ${purpleLinesHtml}
+        ${yellowLinesHtml}
+
+        <circle
+            cx="${center.x}"
+            cy="${center.y}"
+            r="43"
+            class="p3-center-ring"
+        ></circle>
+
+        ${markersHtml}
+
+        <polygon
+            points="240,22 229,42 251,42"
+            class="p3-north-arrow"
+        ></polygon>
+
+        <text
+            x="240"
+            y="58"
+            class="p3-north-label"
+        >
+            北
+        </text>
+    `;
+
+    /*
+        プレイヤーより手前に出ないように、
+        playerの直前へ挿入する。
+    */
+    field.insertBefore(
+        phaseField,
+        player
+    );
+}
+
+/* =========================
    バトルタイマー
 ========================= */
 
@@ -542,6 +1367,7 @@ function updateTimers() {
         battleTime.toFixed(1);
 
     renderParty();
+    updatePhase3ActionGuide();
 }
 
 function startTimer() {
@@ -570,9 +1396,23 @@ function resetBattleState() {
     party = cloneData(baseParty);
 
     battleTime = 0;
+    currentActionStep = null;
 
-    playerX = 240;
-    playerY = 240;
+    /*
+        選択中のロールの初期位置を取得する。
+
+        fieldPositionsに座標がなければ、
+        フィールド中央を使用する。
+    */
+    const controlledStartPosition =
+        fieldPositions[controlledRole] ||
+        phase3FieldData.center;
+
+    playerX =
+        controlledStartPosition.x;
+
+    playerY =
+        controlledStartPosition.y;
 
     pressedKeys.w = false;
     pressedKeys.a = false;
@@ -581,9 +1421,36 @@ function resetBattleState() {
 
     battleTimer.textContent = "00.0";
 
+    /*
+        パーティーリストと
+        フィールド上のメンバーを再描画する。
+    */
     renderParty();
     renderFieldMembers();
+
+    /*
+        操作プレイヤーのロール表示と
+        座標表示を更新する。
+    */
+    updateControlledPlayerAppearance();
     updatePlayerPosition();
+
+    /*
+        デバフ配布後に表示される
+        パターン名を未配布へ戻す。
+    */
+    const patternNameElement =
+        document.getElementById(
+            "assigned-pattern-name"
+        );
+
+    if (patternNameElement) {
+        patternNameElement.textContent =
+            "使用パターン：未配布";
+    }
+
+    clearActionGuide();
+    updateActionGuideVisibility();
 }
 
 function resetTimer() {
@@ -773,7 +1640,13 @@ phaseButtons.forEach(button => {
 
 renderPhaseOptions();
 renderParty();
+renderPhaseField();
 renderFieldMembers();
+
+updateControlledPlayerAppearance();
 updatePlayerPosition();
+
+clearActionGuide();
+updateActionGuideVisibility();
 
 requestAnimationFrame(gameLoop);

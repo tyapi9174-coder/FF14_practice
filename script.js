@@ -228,6 +228,14 @@ const phase3ActionTimeline = [
 
 let currentActionStep = null;
 
+/*
+    NPC移動で現在適用中の①～⑥。
+
+    行動ガイドとは別に管理し、
+    同じ目的地を何度も設定しないようにする。
+*/
+let currentMovementStep = null;
+
 /* =========================
    プレイヤー設定
 ========================= */
@@ -443,6 +451,353 @@ yellowPoints: [
 };
 
 /* =========================
+   P3前半・移動位置データ
+========================= */
+
+/*
+    緑玉位置はphase3FieldDataと同じ座標。
+
+    outerが付く位置は、
+    対応する緑玉よりさらに外周側。
+*/
+const phase3MovementPositions = {
+    center: {
+        x: 240,
+        y: 240
+    },
+
+    /*
+        早ファイガTHの⑥専用。
+        中央から本当に少しだけ北。
+    */
+    centerSlightNorth: {
+        x: 240,
+        y: 220
+    },
+
+    northGreen: {
+        x: 240,
+        y: 75
+    },
+
+    northEastGreen: {
+        x: 350,
+        y: 130
+    },
+
+    eastGreen: {
+        x: 405,
+        y: 240
+    },
+
+    southEastGreen: {
+        x: 350,
+        y: 350
+    },
+
+    southGreen: {
+        x: 240,
+        y: 405
+    },
+
+    southWestGreen: {
+        x: 130,
+        y: 350
+    },
+
+    westGreen: {
+        x: 75,
+        y: 240
+    },
+
+    northWestGreen: {
+        x: 130,
+        y: 130
+    },
+
+    northOuter: {
+        x: 240,
+        y: 20
+    },
+
+    northEastOuter: {
+        x: 395,
+        y: 85
+    },
+
+    eastOuter: {
+        x: 460,
+        y: 240
+    },
+
+    southEastOuter: {
+        x: 395,
+        y: 395
+    },
+
+    southOuter: {
+        x: 240,
+        y: 460
+    },
+
+    southWestOuter: {
+        x: 85,
+        y: 395
+    },
+
+    westOuter: {
+        x: 20,
+        y: 240
+    },
+
+    northWestOuter: {
+        x: 85,
+        y: 85
+    }
+};
+
+/* =========================
+   P3前半・デバフ別移動パターン
+========================= */
+
+/*
+    positionsの1個目が①、
+    2個目が②……6個目が⑥。
+
+    actionは、あとで正解判定画面や
+    NPCの行動表示にも利用できる。
+*/
+const phase3MovementPatterns = {
+    /*
+        TH
+    */
+
+    earlyFireTH: {
+        label: "早ファイガTH",
+
+        actions: [
+            "ファイガ捨て",
+            "リターン設置",
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "southOuter",
+            "southGreen",
+            "center",
+            "southGreen",
+            "center",
+            "centerSlightNorth"
+        ]
+    },
+
+    middleFireTH: {
+        label: "中ファイガTH",
+
+        actions: [
+            "頭割り",
+            "リターン設置",
+            "ファイガ捨て",
+            "待機",
+            "頭割り",
+            "ビーム誘導後、外周向く"
+        ],
+
+        positions: [
+            "center",
+            "westGreen",
+            "westOuter",
+            "center",
+            "center",
+            "westGreen"
+        ]
+    },
+
+    lateFireTH1: {
+        label: "遅ファイガTH①",
+
+        actions: [
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "リターン設置",
+            "ファイガ捨て",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "center",
+            "southWestGreen",
+            "center",
+            "center",
+            "southWestOuter",
+            "center"
+        ]
+    },
+
+    lateFireTH2: {
+        label: "遅ファイガTH②",
+
+        actions: [
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "リターン設置",
+            "ファイガ捨て",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "center",
+            "southEastGreen",
+            "center",
+            "center",
+            "southEastOuter",
+            "center"
+        ]
+    },
+
+    blizzardTH: {
+        label: "THブリザガ",
+
+        actions: [
+            "ブリザガ捨て",
+            "リターン設置",
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "center",
+            "southGreen",
+            "center",
+            "southGreen",
+            "center",
+            "center"
+        ]
+    },
+
+    /*
+        DPS
+    */
+
+    earlyFireDPS1: {
+        label: "早ファイガDPS①",
+
+        actions: [
+            "ファイガ捨て",
+            "リターン設置",
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "northWestOuter",
+            "northWestGreen",
+            "center",
+            "northWestGreen",
+            "center",
+            "center"
+        ]
+    },
+
+    earlyFireDPS2: {
+        label: "早ファイガDPS②",
+
+        actions: [
+            "ファイガ捨て",
+            "リターン設置",
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "northEastOuter",
+            "northEastGreen",
+            "center",
+            "northEastGreen",
+            "center",
+            "center"
+        ]
+    },
+
+    middleFireDPS: {
+        label: "中ファイガDPS",
+
+        actions: [
+            "頭割り",
+            "リターン設置",
+            "ファイガ捨て",
+            "待機",
+            "頭割り",
+            "ビーム誘導"
+        ],
+
+        positions: [
+            "center",
+            "center",
+            "eastOuter",
+            "center",
+            "center",
+            "eastGreen"
+        ]
+    },
+
+    lateFireDPS: {
+        label: "遅ファイガDPS",
+
+        actions: [
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "リターン設置",
+            "ファイガ捨て",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "center",
+            "northGreen",
+            "center",
+            "center",
+            "northOuter",
+            "center"
+        ]
+    },
+
+    blizzardDPS: {
+        label: "DPSブリザガ",
+
+        actions: [
+            "頭割り",
+            "ビーム誘導",
+            "頭割り",
+            "リターン設置",
+            "頭割り",
+            "中で外周向く"
+        ],
+
+        positions: [
+            "center",
+            "northGreen",
+            "center",
+            "center",
+            "center",
+            "center"
+        ]
+    }
+};
+
+/* =========================
    共通処理
 ========================= */
 
@@ -624,6 +979,239 @@ function getPhase3AssignmentType(patternDebuffs) {
     return null;
 }
 
+/*
+    選ばれたP3パターンをもとに、
+    8人それぞれの移動パターンを決定する。
+
+    DPS早ファイガは、
+    ロール順で①・②へ分ける。
+
+    TH遅ファイガも、
+    ロール順で①・②へ分ける。
+*/
+function assignPhase3MovementPatterns(
+    selectedPattern
+) {
+    let earlyFireDpsCount = 0;
+    let lateFireThCount = 0;
+
+    baseParty.forEach(member => {
+        const actorState =
+            actorStates[member.role];
+
+        if (!actorState) {
+            return;
+        }
+
+        const patternDebuffs =
+            selectedPattern.assignments[
+                member.role
+            ];
+
+        if (!patternDebuffs) {
+            actorState.movementPatternKey =
+                null;
+
+            return;
+        }
+
+        const assignmentType =
+            getPhase3AssignmentType(
+                patternDebuffs
+            );
+
+        const roleGroup =
+            getActionRoleGroup(
+                member.role
+            );
+
+        let movementPatternKey = null;
+
+        /*
+            THの担当決定。
+        */
+        if (roleGroup === "TH") {
+            if (
+                assignmentType ===
+                "earlyFire"
+            ) {
+                movementPatternKey =
+                    "earlyFireTH";
+            }
+
+            if (
+                assignmentType ===
+                "middleFire"
+            ) {
+                movementPatternKey =
+                    "middleFireTH";
+            }
+
+            if (
+                assignmentType ===
+                "lateFire"
+            ) {
+                lateFireThCount += 1;
+
+                movementPatternKey =
+                    lateFireThCount === 1
+                        ? "lateFireTH1"
+                        : "lateFireTH2";
+            }
+
+            if (
+                assignmentType ===
+                "blizzard"
+            ) {
+                movementPatternKey =
+                    "blizzardTH";
+            }
+        }
+
+        /*
+            DPSの担当決定。
+        */
+        if (roleGroup === "DPS") {
+            if (
+                assignmentType ===
+                "earlyFire"
+            ) {
+                earlyFireDpsCount += 1;
+
+                movementPatternKey =
+                    earlyFireDpsCount === 1
+                        ? "earlyFireDPS1"
+                        : "earlyFireDPS2";
+            }
+
+            if (
+                assignmentType ===
+                "middleFire"
+            ) {
+                movementPatternKey =
+                    "middleFireDPS";
+            }
+
+            if (
+                assignmentType ===
+                "lateFire"
+            ) {
+                movementPatternKey =
+                    "lateFireDPS";
+            }
+
+            if (
+                assignmentType ===
+                "blizzard"
+            ) {
+                movementPatternKey =
+                    "blizzardDPS";
+            }
+        }
+
+        actorState.movementPatternKey =
+            movementPatternKey;
+    });
+}
+
+/*
+    現在時間に対応する①～⑥を取得する。
+*/
+function getCurrentPhase3MovementStep() {
+    const timelineData =
+        phase3ActionTimeline.find(item => {
+            return (
+                battleTime >= item.startTime &&
+                battleTime < item.endTime
+            );
+        });
+
+    if (!timelineData) {
+        return null;
+    }
+
+    return timelineData.step;
+}
+
+/*
+    現在の①～⑥に対応した移動先を、
+    全員のactorStateへ設定する。
+*/
+function updatePhase3MovementTargets(
+    forceUpdate = false
+) {
+    if (selectedPhase !== "P3") {
+        return;
+    }
+
+    const newMovementStep =
+        getCurrentPhase3MovementStep();
+
+    if (newMovementStep === null) {
+        return;
+    }
+
+    if (
+        !forceUpdate &&
+        currentMovementStep ===
+            newMovementStep
+    ) {
+        return;
+    }
+
+    currentMovementStep =
+        newMovementStep;
+
+    Object.values(actorStates).forEach(
+        actorState => {
+            const movementPatternKey =
+                actorState
+                    .movementPatternKey;
+
+            if (!movementPatternKey) {
+                return;
+            }
+
+            const movementPattern =
+                phase3MovementPatterns[
+                    movementPatternKey
+                ];
+
+            if (!movementPattern) {
+                return;
+            }
+
+            /*
+                配列は0から始まるため、
+                ①なら0番目を使用する。
+            */
+            const positionKey =
+                movementPattern.positions[
+                    newMovementStep - 1
+                ];
+
+            const targetPosition =
+                phase3MovementPositions[
+                    positionKey
+                ];
+
+            if (!targetPosition) {
+                console.warn(
+                    `${positionKey}の座標がありません。`
+                );
+
+                return;
+            }
+
+            setActorTarget(
+                actorState.role,
+                targetPosition.x,
+                targetPosition.y
+            );
+        }
+    );
+}
+
 /* 配列からランダムに1つ取得する */
 function getRandomPattern(patterns) {
     if (patterns.length === 0) {
@@ -634,6 +1222,132 @@ function getRandomPattern(patterns) {
         Math.floor(Math.random() * patterns.length);
 
     return patterns[randomIndex];
+}
+
+/*
+    同じTHまたはDPSの中から、
+    指定されたデバフ担当を探す。
+*/
+function findRoleWithAssignmentType(
+    pattern,
+    roleGroup,
+    assignmentType
+) {
+    return baseParty.find(member => {
+        if (
+            getActionRoleGroup(member.role) !==
+            roleGroup
+        ) {
+            return false;
+        }
+
+        const assignment =
+            pattern.assignments[
+                member.role
+            ];
+
+        if (!assignment) {
+            return false;
+        }
+
+        return (
+            getPhase3AssignmentType(
+                assignment
+            ) === assignmentType
+        );
+    });
+}
+
+/*
+    指定モード用。
+
+    既存の正しいパターンを複製し、
+    同じロールグループ内で配布内容を交換する。
+
+    例：
+    H1が中ファイガを持っていて、
+    操作キャラクターがSTなら、
+
+    STとH1のデバフ一式を交換する。
+*/
+function createSpecifiedPhase3Pattern(
+    originalPattern,
+    targetRole,
+    targetAssignmentType
+) {
+    const copiedPattern =
+        cloneData(originalPattern);
+
+    const targetRoleGroup =
+        getActionRoleGroup(
+            targetRole
+        );
+
+    const sourceMember =
+        findRoleWithAssignmentType(
+            copiedPattern,
+            targetRoleGroup,
+            targetAssignmentType
+        );
+
+    if (!sourceMember) {
+        return null;
+    }
+
+    /*
+        すでに希望デバフなら、
+        交換せずそのまま返す。
+    */
+    if (sourceMember.role === targetRole) {
+        copiedPattern.name +=
+            `・${targetRole}指定`;
+
+        return copiedPattern;
+    }
+
+    const targetAssignment =
+        copiedPattern.assignments[
+            targetRole
+        ];
+
+    const sourceAssignment =
+        copiedPattern.assignments[
+            sourceMember.role
+        ];
+
+    copiedPattern.assignments[
+        targetRole
+    ] = sourceAssignment;
+
+    copiedPattern.assignments[
+        sourceMember.role
+    ] = targetAssignment;
+
+    copiedPattern.name +=
+        `・${targetRole}${getAssignmentTypeLabel(
+            targetAssignmentType
+        )}指定`;
+
+    return copiedPattern;
+}
+
+/*
+    内部名を日本語表示へ変換する。
+*/
+function getAssignmentTypeLabel(
+    assignmentType
+) {
+    const labels = {
+        earlyFire: "早ファイガ",
+        middleFire: "中ファイガ",
+        lateFire: "遅ファイガ",
+        blizzard: "ブリザガ"
+    };
+
+    return (
+        labels[assignmentType] ||
+        assignmentType
+    );
 }
 
 /* =========================
@@ -1069,49 +1783,88 @@ function assignPhase3Debuffs() {
     const selectedSelfType =
         selfDebuffSelect.value;
 
-    let availablePatterns =
-        [...phase3Patterns];
+    let selectedPattern = null;
 
     /*
-        自分だけ指定の場合は、
-        STに指定したファイガ／ブリザガがある
-        パターンだけへ絞り込む。
+        完全ランダムの場合。
     */
-    if (selectedMode === "specified") {
-        availablePatterns =
-            phase3Patterns.filter(pattern => {
-                const selfAssignment =
-                    pattern.assignments[
-                        controlledRole
-                    ];
-
-                if (!selfAssignment) {
-                    return false;
-                }
-
-                const assignmentType =
-                    getPhase3AssignmentType(
-                        selfAssignment
-                    );
-
-                return (
-                    assignmentType ===
-                    selectedSelfType
-                );
-            });
+    if (selectedMode === "random") {
+        selectedPattern =
+            cloneData(
+                getRandomPattern(
+                    phase3Patterns
+                )
+            );
     }
 
-    const selectedPattern =
-        getRandomPattern(availablePatterns);
+    /*
+        自分だけ指定の場合。
+
+        自分と同じTH／DPSグループ内に
+        希望デバフが存在するパターンを探す。
+    */
+    if (selectedMode === "specified") {
+        const controlledRoleGroup =
+            getActionRoleGroup(
+                controlledRole
+            );
+
+        const availablePatterns =
+            phase3Patterns.filter(pattern => {
+                return baseParty.some(member => {
+                    if (
+                        getActionRoleGroup(
+                            member.role
+                        ) !== controlledRoleGroup
+                    ) {
+                        return false;
+                    }
+
+                    const assignment =
+                        pattern.assignments[
+                            member.role
+                        ];
+
+                    if (!assignment) {
+                        return false;
+                    }
+
+                    return (
+                        getPhase3AssignmentType(
+                            assignment
+                        ) ===
+                        selectedSelfType
+                    );
+                });
+            });
+
+        const originalPattern =
+            getRandomPattern(
+                availablePatterns
+            );
+
+        if (originalPattern) {
+            selectedPattern =
+                createSpecifiedPhase3Pattern(
+                    originalPattern,
+                    controlledRole,
+                    selectedSelfType
+                );
+        }
+    }
 
     if (!selectedPattern) {
         alert(
-            "指定した条件に合うパターンがありません。"
+            "同じロールグループ内に、指定したデバフを持つパターンがありません。"
         );
 
         return;
     }
 
+    /*
+        パーティーリストへ
+        デバフを設定する。
+    */
     party.forEach(member => {
         const patternDebuffs =
             selectedPattern.assignments[
@@ -1129,7 +1882,17 @@ function assignPhase3Debuffs() {
             );
     });
 
+    /*
+        NPC全員の移動パターンを決定する。
+    */
+    assignPhase3MovementPatterns(
+        selectedPattern
+    );
+
     battleTime = 0;
+    currentActionStep = null;
+    currentMovementStep = null;
+
     battleTimer.textContent = "00.0";
 
     const patternNameElement =
@@ -1144,20 +1907,23 @@ function assignPhase3Debuffs() {
 
     renderParty();
 
-const selfPatternDebuffs =
-    selectedPattern.assignments[
-        controlledRole
-    ];
+    /*
+        操作キャラクターの
+        行動ガイドを表示する。
+    */
+    const selfPatternDebuffs =
+        selectedPattern.assignments[
+            controlledRole
+        ];
 
-const selfAssignmentType =
-    getPhase3AssignmentType(
-        selfPatternDebuffs
+    const selfAssignmentType =
+        getPhase3AssignmentType(
+            selfPatternDebuffs
+        );
+
+    renderPhase3ActionGuide(
+        selfAssignmentType
     );
-
-renderPhase3ActionGuide(
-    selfAssignmentType
-);
-
 }
 
 /* =========================
@@ -1601,7 +2367,16 @@ function updateTimers() {
         battleTime.toFixed(1);
 
     renderParty();
+
+    /*
+        行動ガイドの①～⑥を更新する。
+    */
     updatePhase3ActionGuide();
+
+    /*
+        NPCの①～⑥の目的地を更新する。
+    */
+    updatePhase3MovementTargets();
 }
 
 /*
@@ -1630,10 +2405,27 @@ function startTimer() {
     }
 
     /*
-        NPC全員にP3開始時の
-        移動先を設定する。
+        デバフが未配布なら開始しない。
     */
-    setPhase3OpeningTargets();
+    const controlledActor =
+        actorStates[controlledRole];
+
+    if (
+        !controlledActor ||
+        !controlledActor.movementPatternKey
+    ) {
+        alert(
+            "先にP3のデバフを配布してください。"
+        );
+
+        return;
+    }
+
+    /*
+        スタートした瞬間に、
+        ①の目的地を設定する。
+    */
+    updatePhase3MovementTargets(true);
 
     timerId = setInterval(
         updateTimers,
@@ -1658,6 +2450,7 @@ function resetBattleState() {
 
     battleTime = 0;
     currentActionStep = null;
+    currentMovementStep = null;
 
     /*
         選択中のロールの初期位置を取得する。

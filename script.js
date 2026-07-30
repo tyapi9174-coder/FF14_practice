@@ -234,8 +234,6 @@ let currentActionStep = null;
 
 let controlledRole = "ST";
 
-let playerX = 240;
-let playerY = 240;
 
 const playerRadius = 17;
 const fieldRadius = 240;
@@ -264,6 +262,67 @@ const fieldPositions = {
     D3: { x: 155, y: 390 },
     D4: { x: 325, y: 390 }
 };
+
+/*
+    8人全員の現在位置や状態を管理する。
+
+    現時点では座標だけを使用する。
+    後から移動状態や向きなどを追加していく。
+*/
+
+let actorStates = {};
+
+/*
+    操作中ロールに合わせて、
+    全actorStateのisControlledを更新する。
+*/
+function updateControlledActorStates() {
+    Object.values(actorStates).forEach(actorState => {
+        actorState.isControlled =
+            actorState.role === controlledRole;
+    });
+}
+
+/*
+    fieldPositionsをもとに、
+    8人分の初期状態を作成する。
+*/
+function initializeActorStates() {
+    actorStates = {};
+
+    baseParty.forEach(member => {
+        const startPosition =
+            fieldPositions[member.role] ||
+            phase3FieldData.center;
+
+        actorStates[member.role] = {
+            role: member.role,
+            job: member.job,
+
+            x: startPosition.x,
+            y: startPosition.y,
+
+            /*
+                NPCが向かう目標座標。
+                初期状態では現在位置と同じ。
+            */
+            targetX: startPosition.x,
+            targetY: startPosition.y,
+
+            /*
+                NPCの移動速度。
+                1秒あたり120px。
+            */
+            moveSpeed: 120,
+
+            isControlled: false
+        };
+    });
+
+    updateControlledActorStates();
+}
+
+
 
 /* =========================
    P3専用フィールドデータ
@@ -492,6 +551,7 @@ function selectControlledRole(role) {
     }
 
     controlledRole = role;
+    updateControlledActorStates();
 
     /*
         ロールボタンの選択表示を更新するため、
@@ -1181,23 +1241,25 @@ function renderParty() {
 
 function renderFieldMembers() {
     const oldMembers =
-        field.querySelectorAll(
-            ".field-member"
-        );
+        field.querySelectorAll(".field-member");
 
     oldMembers.forEach(member => {
         member.remove();
     });
 
     party.forEach(member => {
-        if (member.role === controlledRole) {
+        const actorState =
+            actorStates[member.role];
+
+        if (!actorState) {
             return;
         }
 
-        const position =
-            fieldPositions[member.role];
-
-        if (!position) {
+        /*
+            操作中のキャラクターは、
+            player要素で表示するためNPCとして作らない。
+        */
+        if (actorState.isControlled) {
             return;
         }
 
@@ -1207,11 +1269,14 @@ function renderFieldMembers() {
         marker.className =
             `field-member ${getRoleType(member.role)}`;
 
+        marker.dataset.role =
+            member.role;
+
         marker.style.left =
-            `${position.x}px`;
+            `${actorState.x}px`;
 
         marker.style.top =
-            `${position.y}px`;
+            `${actorState.y}px`;
 
         marker.innerHTML = `
             ${member.role}
@@ -1223,6 +1288,135 @@ function renderFieldMembers() {
 
         field.appendChild(marker);
     });
+}
+
+/*
+    actorStatesの座標をもとに、
+    フィールド上のNPC位置だけを更新する。
+*/
+function updateFieldMemberPositions() {
+    const fieldMembers =
+        field.querySelectorAll(
+            ".field-member"
+        );
+
+    fieldMembers.forEach(marker => {
+        const role =
+            marker.dataset.role;
+
+        const actorState =
+            actorStates[role];
+
+        if (!actorState) {
+            return;
+        }
+
+        marker.style.left =
+            `${actorState.x}px`;
+
+        marker.style.top =
+            `${actorState.y}px`;
+    });
+}
+
+/*
+    動作確認用。
+    指定したロールを指定座標へ移動する。
+*/
+function moveActorForTest(role, x, y) {
+    const actorState =
+        actorStates[role];
+
+    if (!actorState) {
+        console.warn(
+            `${role}のactorStateがありません。`
+        );
+
+        return;
+    }
+
+    actorState.x = x;
+    actorState.y = y;
+
+    actorState.targetX = x;
+    actorState.targetY = y;
+
+    updateFieldMemberPositions();
+}
+
+/*
+    指定したキャラクターの
+    移動目標地点を設定する。
+*/
+function setActorTarget(role, x, y) {
+    const actorState =
+        actorStates[role];
+
+    if (!actorState) {
+        return;
+    }
+
+    actorState.targetX = x;
+    actorState.targetY = y;
+}
+
+/*
+    操作キャラクター以外のNPCを、
+    それぞれの目標地点へ移動させる。
+*/
+function updateNpcMovement(deltaTime) {
+    let positionChanged = false;
+
+    Object.values(actorStates).forEach(actorState => {
+        if (actorState.isControlled) {
+            return;
+        }
+
+        const distanceX =
+            actorState.targetX - actorState.x;
+
+        const distanceY =
+            actorState.targetY - actorState.y;
+
+        const distance =
+            Math.sqrt(
+                distanceX * distanceX +
+                distanceY * distanceY
+            );
+
+        /*
+            すでに目標地点へ到着している場合。
+        */
+        if (distance < 0.5) {
+            actorState.x =
+                actorState.targetX;
+
+            actorState.y =
+                actorState.targetY;
+
+            return;
+        }
+
+        const moveDistance =
+            Math.min(
+                actorState.moveSpeed * deltaTime,
+                distance
+            );
+
+        actorState.x +=
+            distanceX / distance *
+            moveDistance;
+
+        actorState.y +=
+            distanceY / distance *
+            moveDistance;
+
+        positionChanged = true;
+    });
+
+    if (positionChanged) {
+        updateFieldMemberPositions();
+    }
 }
 
 /* =========================
@@ -1410,10 +1604,36 @@ function updateTimers() {
     updatePhase3ActionGuide();
 }
 
+/*
+    P3開始時のNPC移動先を設定する。
+
+    操作中のキャラクターは、
+    updateNpcMovement側で除外されるため自動移動しない。
+*/
+function setPhase3OpeningTargets() {
+    setActorTarget("MT", 240, 75);
+    setActorTarget("ST", 240, 405);
+
+    setActorTarget("H1", 130, 130);
+    setActorTarget("H2", 350, 130);
+
+    setActorTarget("D1", 75, 240);
+    setActorTarget("D2", 405, 240);
+
+    setActorTarget("D3", 130, 350);
+    setActorTarget("D4", 350, 350);
+}
+
 function startTimer() {
     if (timerId !== null) {
         return;
     }
+
+    /*
+        NPC全員にP3開始時の
+        移動先を設定する。
+    */
+    setPhase3OpeningTargets();
 
     timerId = setInterval(
         updateTimers,
@@ -1434,6 +1654,7 @@ function resetBattleState() {
     pauseTimer();
 
     party = cloneData(baseParty);
+    initializeActorStates();
 
     battleTime = 0;
     currentActionStep = null;
@@ -1444,15 +1665,7 @@ function resetBattleState() {
         fieldPositionsに座標がなければ、
         フィールド中央を使用する。
     */
-    const controlledStartPosition =
-        fieldPositions[controlledRole] ||
-        phase3FieldData.center;
-
-    playerX =
-        controlledStartPosition.x;
-
-    playerY =
-        controlledStartPosition.y;
+    
 
     pressedKeys.w = false;
     pressedKeys.a = false;
@@ -1502,11 +1715,19 @@ function resetTimer() {
 ========================= */
 
 function updatePlayerPosition() {
+
+    const actor =
+        actorStates[controlledRole];
+
+    if (!actor) {
+        return;
+    }
+
     player.style.left =
-        `${playerX - playerRadius}px`;
+        `${actor.x - playerRadius}px`;
 
     player.style.top =
-        `${playerY - playerRadius}px`;
+        `${actor.y - playerRadius}px`;
 }
 
 function canMoveTo(nextX, nextY) {
@@ -1529,6 +1750,13 @@ function canMoveTo(nextX, nextY) {
 }
 
 function updatePlayerMovement(deltaTime) {
+    const controlledActor =
+        actorStates[controlledRole];
+
+    if (!controlledActor) {
+        return;
+    }
+
     let directionX = 0;
     let directionY = 0;
 
@@ -1563,20 +1791,20 @@ function updatePlayerMovement(deltaTime) {
     }
 
     const nextX =
-        playerX +
+        controlledActor.x +
         directionX *
         moveSpeed *
         deltaTime;
 
     const nextY =
-        playerY +
+        controlledActor.y +
         directionY *
         moveSpeed *
         deltaTime;
 
     if (canMoveTo(nextX, nextY)) {
-        playerX = nextX;
-        playerY = nextY;
+        controlledActor.x = nextX;
+        controlledActor.y = nextY;
 
         updatePlayerPosition();
     }
@@ -1590,16 +1818,25 @@ function gameLoop(currentTime) {
 
     const deltaTime =
         Math.min(
-            (currentTime -
-                previousAnimationTime) /
-                1000,
+            (
+                currentTime -
+                previousAnimationTime
+            ) / 1000,
             0.05
         );
 
     previousAnimationTime =
         currentTime;
 
+    /*
+        YOUのWASD移動。
+    */
     updatePlayerMovement(deltaTime);
+
+    /*
+        NPCの自動移動。
+    */
+    updateNpcMovement(deltaTime);
 
     requestAnimationFrame(gameLoop);
 }
@@ -1681,6 +1918,7 @@ phaseButtons.forEach(button => {
 renderPhaseOptions();
 renderParty();
 renderPhaseField();
+initializeActorStates();
 renderFieldMembers();
 
 updateControlledPlayerAppearance();

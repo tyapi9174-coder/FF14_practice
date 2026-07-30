@@ -19,10 +19,51 @@
         <h2 id="battle-timer">00.0</h2>
     </header>
 
+    <!-- コンテンツ・フェーズ選択 -->
+    <section class="setup-panel">
+        <div class="setup-row">
+            <label for="content-select">コンテンツ</label>
+
+            <select id="content-select">
+                <option value="ultimate-eden">
+                    絶もうひとつの未来
+                </option>
+            </select>
+        </div>
+
+        <div class="phase-selector">
+            <button class="phase-button" data-phase="P1">
+                P1
+            </button>
+
+            <button class="phase-button" data-phase="P2">
+                P2
+            </button>
+
+            <button class="phase-button active" data-phase="P3">
+                P3
+            </button>
+
+            <button class="phase-button" data-phase="P4">
+                P4
+            </button>
+
+            <button class="phase-button" data-phase="P5">
+                P5
+            </button>
+        </div>
+
+        <div id="phase-title">
+            P3：時間圧縮・絶
+        </div>
+
+        <!-- フェーズごとに内容が変わる場所 -->
+        <div id="phase-options"></div>
+    </section>
+
     <main class="main-layout">
 
         <section class="party-panel">
-
             <h2>PARTY</h2>
 
             <div class="control-buttons">
@@ -32,17 +73,16 @@
             </div>
 
             <div id="party-list"></div>
-
         </section>
 
         <section class="field-panel">
             <h2>FIELD</h2>
 
-        <div class="field">
-            <div id="player">
-                <span>YOU</span>
-        </div>
-</div>
+            <div class="field">
+                <div id="player">
+                    <span>YOU</span>
+                </div>
+            </div>
         </section>
 
     </main>

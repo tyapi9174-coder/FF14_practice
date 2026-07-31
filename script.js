@@ -236,6 +236,26 @@ let currentActionStep = null;
 */
 let currentMovementStep = null;
 
+/*
+    P3正解判定設定。
+
+    judgeRadius:
+        正解座標から何px以内なら成功とするか。
+
+    judgedSteps:
+        すでに判定済みの①～⑥を記録する。
+
+    results:
+        各ステップの判定結果を保存する。
+*/
+const phase3JudgementState = {
+    judgeRadius: 48,
+
+    judgedSteps: new Set(),
+
+    results: {}
+};
+
 /* =========================
    プレイヤー設定
 ========================= */
@@ -1212,6 +1232,115 @@ function updatePhase3MovementTargets(
     );
 }
 
+/*
+    配列の順番をランダムに並べ替えた
+    新しい配列を作成する。
+
+    元の配列自体は変更しない。
+*/
+function shuffleArray(array) {
+    const shuffledArray = [
+        ...array
+    ];
+
+    for (
+        let index =
+            shuffledArray.length - 1;
+
+        index > 0;
+
+        index -= 1
+    ) {
+        const randomIndex =
+            Math.floor(
+                Math.random() *
+                (index + 1)
+            );
+
+        const temporaryValue =
+            shuffledArray[index];
+
+        shuffledArray[index] =
+            shuffledArray[randomIndex];
+
+        shuffledArray[randomIndex] =
+            temporaryValue;
+    }
+
+    return shuffledArray;
+}
+
+/*
+    正しいP3配布パターンを基準にして、
+
+    THはTHの4人の中、
+    DPSはDPSの4人の中で、
+
+    デバフ一式をランダムに交換する。
+*/
+function createRandomizedPhase3Pattern(
+    originalPattern
+) {
+    const copiedPattern =
+        cloneData(originalPattern);
+
+    const roleGroups = [
+        [
+            "MT",
+            "ST",
+            "H1",
+            "H2"
+        ],
+        [
+            "D1",
+            "D2",
+            "D3",
+            "D4"
+        ]
+    ];
+
+    roleGroups.forEach(roles => {
+        /*
+            このグループが現在持っている
+            デバフ一式を取得する。
+        */
+        const assignments =
+            roles.map(role => {
+                return cloneData(
+                    copiedPattern
+                        .assignments[role]
+                );
+            });
+
+        /*
+            デバフ一式の順番を
+            ランダムに並べ替える。
+        */
+        const shuffledAssignments =
+            shuffleArray(assignments);
+
+        /*
+            並べ替えたデバフ一式を、
+            同じグループの各ロールへ配り直す。
+        */
+        roles.forEach(
+            (role, index) => {
+                copiedPattern.assignments[
+                    role
+                ] =
+                    shuffledAssignments[
+                        index
+                    ];
+            }
+        );
+    });
+
+    copiedPattern.name +=
+        "・ランダム配布";
+
+    return copiedPattern;
+}
+
 /* 配列からランダムに1つ取得する */
 function getRandomPattern(patterns) {
     if (patterns.length === 0) {
@@ -1639,8 +1768,15 @@ function renderPhase3ActionGuide(
             selectedActionData.actions
         );
 
-        currentActionStep = 1;
-        updatePhase3ActionGuide();
+    /*
+        デバフを再配布したときは、
+        前回の正解判定を消す。
+    */
+    resetPhase3Judgement();
+
+    currentActionStep = 1;
+
+    updatePhase3ActionGuide();
 }
 
 function clearActionGuide(
@@ -1787,56 +1923,83 @@ function assignPhase3Debuffs() {
 
     /*
         完全ランダムの場合。
+
+        元になる正しいパターンを1つ選び、
+        TH内・DPS内で配布をシャッフルする。
     */
     if (selectedMode === "random") {
-        selectedPattern =
-            cloneData(
-                getRandomPattern(
-                    phase3Patterns
-                )
+        const originalPattern =
+            getRandomPattern(
+                phase3Patterns
             );
+
+        if (originalPattern) {
+            selectedPattern =
+                createRandomizedPhase3Pattern(
+                    originalPattern
+                );
+        }
     }
 
     /*
         自分だけ指定の場合。
 
-        自分と同じTH／DPSグループ内に
-        希望デバフが存在するパターンを探す。
+        まず正しいパターンを選び、
+        TH内・DPS内でランダム配布する。
+
+        その後、自分と同じロールグループ内で
+        希望デバフを持つ人と交換する。
     */
     if (selectedMode === "specified") {
+        const randomizedPatterns =
+            phase3Patterns.map(
+                pattern => {
+                    return (
+                        createRandomizedPhase3Pattern(
+                            pattern
+                        )
+                    );
+                }
+            );
+
         const controlledRoleGroup =
             getActionRoleGroup(
                 controlledRole
             );
 
         const availablePatterns =
-            phase3Patterns.filter(pattern => {
-                return baseParty.some(member => {
-                    if (
-                        getActionRoleGroup(
-                            member.role
-                        ) !== controlledRoleGroup
-                    ) {
-                        return false;
-                    }
+            randomizedPatterns.filter(
+                pattern => {
+                    return baseParty.some(
+                        member => {
+                            if (
+                                getActionRoleGroup(
+                                    member.role
+                                ) !==
+                                controlledRoleGroup
+                            ) {
+                                return false;
+                            }
 
-                    const assignment =
-                        pattern.assignments[
-                            member.role
-                        ];
+                            const assignment =
+                                pattern.assignments[
+                                    member.role
+                                ];
 
-                    if (!assignment) {
-                        return false;
-                    }
+                            if (!assignment) {
+                                return false;
+                            }
 
-                    return (
-                        getPhase3AssignmentType(
-                            assignment
-                        ) ===
-                        selectedSelfType
+                            return (
+                                getPhase3AssignmentType(
+                                    assignment
+                                ) ===
+                                selectedSelfType
+                            );
+                        }
                     );
-                });
-            });
+                }
+            );
 
         const originalPattern =
             getRandomPattern(
@@ -2343,6 +2506,394 @@ function renderPhaseField() {
 }
 
 /* =========================
+   P3正解判定
+========================= */
+
+/*
+    判定結果をすべて初期化する。
+*/
+function resetPhase3Judgement() {
+    phase3JudgementState
+        .judgedSteps
+        .clear();
+
+    phase3JudgementState.results = {};
+
+    const oldSummary =
+        document.getElementById(
+            "phase3-judgement-summary"
+        );
+
+    if (oldSummary) {
+        oldSummary.remove();
+    }
+
+    const actionItems =
+        actionGuideList.querySelectorAll(
+            ".action-guide-item"
+        );
+
+    actionItems.forEach(item => {
+        item.dataset.judgement = "";
+
+        item.style.borderColor = "";
+        item.style.background = "";
+
+        const oldResult =
+            item.querySelector(
+                ".action-judgement-result"
+            );
+
+        if (oldResult) {
+            oldResult.remove();
+        }
+    });
+}
+
+/*
+    操作キャラクターの移動パターンを取得する。
+*/
+function getControlledMovementPattern() {
+    const controlledActor =
+        actorStates[controlledRole];
+
+    if (
+        !controlledActor ||
+        !controlledActor.movementPatternKey
+    ) {
+        return null;
+    }
+
+    return phase3MovementPatterns[
+        controlledActor.movementPatternKey
+    ] || null;
+}
+
+/*
+    指定された①～⑥の正解座標を取得する。
+*/
+function getPhase3CorrectPosition(step) {
+    const movementPattern =
+        getControlledMovementPattern();
+
+    if (!movementPattern) {
+        return null;
+    }
+
+    const positionKey =
+        movementPattern.positions[
+            step - 1
+        ];
+
+    if (!positionKey) {
+        return null;
+    }
+
+    const position =
+        phase3MovementPositions[
+            positionKey
+        ];
+
+    if (!position) {
+        console.warn(
+            `${positionKey}の正解座標がありません。`
+        );
+
+        return null;
+    }
+
+    return {
+        key: positionKey,
+        x: position.x,
+        y: position.y
+    };
+}
+
+/*
+    2つの座標間の距離を計算する。
+*/
+function getDistanceBetweenPositions(
+    x1,
+    y1,
+    x2,
+    y2
+) {
+    const distanceX =
+        x2 - x1;
+
+    const distanceY =
+        y2 - y1;
+
+    return Math.sqrt(
+        distanceX * distanceX +
+        distanceY * distanceY
+    );
+}
+
+/*
+    位置キーを画面表示用の名前に変換する。
+*/
+function getPositionDisplayName(
+    positionKey
+) {
+    const positionLabels = {
+        center: "中央",
+        centerSlightNorth: "中央やや北",
+
+        northGreen: "北の緑玉",
+        northEastGreen: "北東の緑玉",
+        eastGreen: "東の緑玉",
+        southEastGreen: "南東の緑玉",
+        southGreen: "南の緑玉",
+        southWestGreen: "南西の緑玉",
+        westGreen: "西の緑玉",
+        northWestGreen: "北西の緑玉",
+
+        northOuter: "北外周",
+        northEastOuter: "北東外周",
+        eastOuter: "東外周",
+        southEastOuter: "南東外周",
+        southOuter: "南外周",
+        southWestOuter: "南西外周",
+        westOuter: "西外周",
+        northWestOuter: "北西外周"
+    };
+
+    return (
+        positionLabels[positionKey] ||
+        positionKey
+    );
+}
+
+/*
+    行動ガイドの①～⑥へ
+    成功・失敗の見た目を反映する。
+*/
+function renderPhase3StepJudgement(
+    step,
+    result
+) {
+    const actionItem =
+        actionGuideList.querySelector(
+            `[data-action-step="${step}"]`
+        );
+
+    if (!actionItem) {
+        return;
+    }
+
+    const oldResult =
+        actionItem.querySelector(
+            ".action-judgement-result"
+        );
+
+    if (oldResult) {
+        oldResult.remove();
+    }
+
+    const resultElement =
+        document.createElement("div");
+
+    resultElement.className =
+        "action-judgement-result";
+
+    resultElement.style.marginTop = "6px";
+    resultElement.style.fontWeight = "700";
+    resultElement.style.fontSize = "14px";
+
+    if (result.isCorrect) {
+        actionItem.dataset.judgement =
+            "correct";
+
+        actionItem.style.borderColor =
+            "#50d890";
+
+        actionItem.style.background =
+            "rgba(80, 216, 144, 0.12)";
+
+        resultElement.style.color =
+            "#7dffb3";
+
+        resultElement.textContent =
+            `成功　正解位置：${result.positionLabel}`;
+    } else {
+        actionItem.dataset.judgement =
+            "incorrect";
+
+        actionItem.style.borderColor =
+            "#ff6b6b";
+
+        actionItem.style.background =
+            "rgba(255, 107, 107, 0.12)";
+
+        resultElement.style.color =
+            "#ff8c8c";
+
+        resultElement.textContent =
+            `失敗　正解位置：${result.positionLabel}`;
+    }
+
+    actionItem.appendChild(
+        resultElement
+    );
+}
+
+/*
+    成功数・失敗数を表示する。
+*/
+function renderPhase3JudgementSummary() {
+    let summary =
+        document.getElementById(
+            "phase3-judgement-summary"
+        );
+
+    if (!summary) {
+        summary =
+            document.createElement("div");
+
+        summary.id =
+            "phase3-judgement-summary";
+
+        summary.style.marginTop = "14px";
+        summary.style.padding = "12px";
+        summary.style.borderRadius = "8px";
+        summary.style.background =
+            "rgba(0, 0, 0, 0.25)";
+
+        summary.style.textAlign = "center";
+        summary.style.fontWeight = "700";
+
+        actionGuideList.insertAdjacentElement(
+            "afterend",
+            summary
+        );
+    }
+
+    const results =
+        Object.values(
+            phase3JudgementState.results
+        );
+
+    const correctCount =
+        results.filter(
+            result => result.isCorrect
+        ).length;
+
+    const incorrectCount =
+        results.length - correctCount;
+
+    summary.textContent =
+        `判定 ${results.length}/6　` +
+        `成功 ${correctCount}　` +
+        `失敗 ${incorrectCount}`;
+}
+
+/*
+    指定された①～⑥を判定する。
+*/
+function judgePhase3Step(step) {
+    if (selectedPhase !== "P3") {
+        return;
+    }
+
+    if (
+        phase3JudgementState
+            .judgedSteps
+            .has(step)
+    ) {
+        return;
+    }
+
+    const controlledActor =
+        actorStates[controlledRole];
+
+    const correctPosition =
+        getPhase3CorrectPosition(step);
+
+    if (
+        !controlledActor ||
+        !correctPosition
+    ) {
+        return;
+    }
+
+    const distance =
+        getDistanceBetweenPositions(
+            controlledActor.x,
+            controlledActor.y,
+            correctPosition.x,
+            correctPosition.y
+        );
+
+    const isCorrect =
+        distance <=
+        phase3JudgementState.judgeRadius;
+
+    const result = {
+        step: step,
+        isCorrect: isCorrect,
+
+        distance: distance,
+
+        positionKey:
+            correctPosition.key,
+
+        positionLabel:
+            getPositionDisplayName(
+                correctPosition.key
+            )
+    };
+
+    phase3JudgementState
+        .judgedSteps
+        .add(step);
+
+    phase3JudgementState.results[
+        step
+    ] = result;
+
+    renderPhase3StepJudgement(
+        step,
+        result
+    );
+
+    renderPhase3JudgementSummary();
+
+    console.log(
+        `P3判定 ステップ${step}：`,
+        result
+    );
+}
+
+/*
+    現在時刻を確認し、
+    判定時刻を通過したステップを判定する。
+
+    タイマーが一度に少し進んだ場合でも、
+    未判定のステップを順番に判定する。
+*/
+function updatePhase3Judgement() {
+    if (selectedPhase !== "P3") {
+        return;
+    }
+
+    phase3ActionTimeline.forEach(
+        timeline => {
+            if (
+                battleTime >= timeline.endTime &&
+                !phase3JudgementState
+                    .judgedSteps
+                    .has(timeline.step)
+            ) {
+                judgePhase3Step(
+                    timeline.step
+                );
+            }
+        }
+    );
+}
+
+/* =========================
    バトルタイマー
 ========================= */
 
@@ -2361,12 +2912,25 @@ function updateTimers() {
         });
     });
 
-    battleTime += 0.1;
+    /*
+        小数の計算誤差を防ぐため、
+        毎回小数第1位へ丸める。
+    */
+    battleTime =
+        Math.round(
+            (battleTime + 0.1) * 10
+        ) / 10;
 
     battleTimer.textContent =
         battleTime.toFixed(1);
 
     renderParty();
+
+    /*
+        新しい移動先へ切り替える前に、
+        終了した行動の位置を判定する。
+    */
+    updatePhase3Judgement();
 
     /*
         行動ガイドの①～⑥を更新する。
@@ -2377,6 +2941,14 @@ function updateTimers() {
         NPCの①～⑥の目的地を更新する。
     */
     updatePhase3MovementTargets();
+
+    /*
+        ⑥の判定が完了したら、
+        タイマーを自動停止する。
+    */
+    if (battleTime >= 40) {
+        pauseTimer();
+    }
 }
 
 /*
@@ -2453,12 +3025,9 @@ function resetBattleState() {
     currentMovementStep = null;
 
     /*
-        選択中のロールの初期位置を取得する。
-
-        fieldPositionsに座標がなければ、
-        フィールド中央を使用する。
+        正解判定の履歴も初期化する。
     */
-    
+    resetPhase3Judgement();
 
     pressedKeys.w = false;
     pressedKeys.a = false;

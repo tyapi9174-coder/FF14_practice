@@ -929,3 +929,111 @@ body {
             repeat(2, minmax(90px, 1fr));
     }
 }
+/* =========================
+   P4：時間結晶
+========================= */
+
+.field.p4-active {
+    background-color: #07101f;
+    background-image: url("assets/p4-time-crystal-field.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+/*
+    第1段階では時計と線の確認だけを行うため、
+    プレイヤー/NPCは一旦非表示。
+*/
+.field.p4-active #player,
+.field.p4-active .field-member {
+    display: none;
+}
+
+.p4-field-object {
+    position: absolute;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    pointer-events: none;
+
+    z-index: 2;
+}
+
+.p4-yellow-line {
+    stroke: #ffd83d;
+    stroke-width: 7;
+    stroke-linecap: round;
+
+    filter: drop-shadow(0 0 5px rgba(255, 216, 61, 0.9));
+}
+
+.p4-blue-line {
+    stroke: #39c8ff;
+    stroke-width: 7;
+    stroke-linecap: round;
+
+    filter: drop-shadow(0 0 5px rgba(57, 200, 255, 0.9));
+}
+
+.p4-clock-outer {
+    fill: rgba(19, 18, 16, 0.96);
+    stroke: #dcc18a;
+    stroke-width: 4;
+
+    filter: drop-shadow(0 0 6px rgba(255, 226, 166, 0.65));
+}
+
+.p4-clock-face {
+    fill: rgba(23, 23, 25, 0.98);
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 1.5;
+}
+
+.p4-clock-hand {
+    stroke: white;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.p4-clock-pin {
+    fill: white;
+}
+
+/*
+    起爆順はこの段階では内部データだけで保持。
+    将来の爆発処理でそのまま使用する。
+*/
+.p4-clock-order-1 {}
+.p4-clock-order-2 {}
+.p4-clock-order-3 {}
+
+.phase4-option-box {
+    text-align: center;
+}
+
+.phase4-yellow-text,
+.order-yellow {
+    color: #ffd83d;
+    font-weight: bold;
+}
+
+.phase4-blue-text,
+.order-blue {
+    color: #39c8ff;
+    font-weight: bold;
+}
+
+.order-unlinked {
+    color: #eeeeee;
+    font-weight: bold;
+}
+
+.phase4-order-note {
+    margin-top: 10px;
+
+    color: #bbbbbb;
+    font-size: 14px;
+}

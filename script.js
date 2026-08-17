@@ -18,8 +18,7 @@ const phaseData = {
     },
 
     P4: {
-        title: "P4：最終フェーズ前半",
-        message: "P4の練習内容は準備中です。"
+        title: "P4：時間結晶"
     },
 
     P5: {
@@ -183,6 +182,14 @@ const actionGuideList =
 ========================= */
 
 let selectedPhase = "P3";
+
+/*
+    P4時間結晶の青線パターン。
+    0 = 北東↔南西
+    1 = 北西↔南東
+*/
+let phase4TimeCrystalPatternIndex =
+    Math.floor(Math.random() * 2);
 
 let timerId = null;
 let battleTime = 0;
@@ -1511,6 +1518,11 @@ function renderPhaseOptions() {
         return;
     }
 
+    if (selectedPhase === "P4") {
+        renderPhase4Options();
+        return;
+    }
+
     phaseOptions.innerHTML = `
         <div class="phase-option-box">
             <div class="preparing-message">
@@ -1518,6 +1530,66 @@ function renderPhaseOptions() {
             </div>
         </div>
     `;
+}
+
+/* =========================
+   P4：時間結晶 UI
+========================= */
+
+function renderPhase4Options() {
+    const pattern =
+        phase4TimeCrystalData.patterns[
+            phase4TimeCrystalPatternIndex
+        ];
+
+    phaseOptions.innerHTML = `
+        <div class="phase-option-box phase4-option-box">
+            <div class="phase-option-row">
+                <strong>黄色線：</strong>
+                <span class="phase4-yellow-text">北 ↔ 南（固定）</span>
+
+                <strong>青線：</strong>
+                <span class="phase4-blue-text">${pattern.label}</span>
+
+                <button
+                    type="button"
+                    id="phase4-reroll-button"
+                    class="option-button"
+                >
+                    青線を再抽選
+                </button>
+            </div>
+
+            <div class="phase4-order-note">
+                起爆順：
+                <span class="order-yellow">① 黄色線の2時計</span>
+                →
+                <span class="order-unlinked">② 線なしの2時計</span>
+                →
+                <span class="order-blue">③ 青線の2時計</span>
+            </div>
+        </div>
+    `;
+
+    const rerollButton =
+        document.getElementById(
+            "phase4-reroll-button"
+        );
+
+    rerollButton.addEventListener(
+        "click",
+        function() {
+            phase4TimeCrystalPatternIndex =
+                Math.floor(
+                    Math.random() *
+                    phase4TimeCrystalData
+                        .patterns.length
+                );
+
+            renderPhase4Options();
+            renderPhaseField();
+        }
+    );
 }
 
 function renderPhase3Options() {
@@ -2395,19 +2467,26 @@ function createP3MarkerHtml(marker) {
 }
 
 function renderPhaseField() {
-    const oldPhaseField =
-        field.querySelector(
-            ".p3-field-object"
-        );
-
-    if (oldPhaseField) {
-        oldPhaseField.remove();
-    }
+    field
+        .querySelectorAll(
+            ".p3-field-object, .p4-field-object"
+        )
+        .forEach(element => element.remove());
 
     field.classList.toggle(
         "p3-active",
         selectedPhase === "P3"
     );
+
+    field.classList.toggle(
+        "p4-active",
+        selectedPhase === "P4"
+    );
+
+    if (selectedPhase === "P4") {
+        renderPhase4TimeCrystalField();
+        return;
+    }
 
     if (selectedPhase !== "P3") {
         return;
@@ -2499,6 +2578,162 @@ function renderPhaseField() {
         プレイヤーより手前に出ないように、
         playerの直前へ挿入する。
     */
+    field.insertBefore(
+        phaseField,
+        player
+    );
+}
+
+/* =========================
+   P4：時間結晶 フィールド
+========================= */
+
+function createPhase4ClockHtml(
+    clockId,
+    clock,
+    explosionOrder
+) {
+    return `
+        <g
+            class="p4-clock p4-clock-order-${explosionOrder}"
+            data-clock-id="${clockId}"
+            data-explosion-order="${explosionOrder}"
+        >
+            <circle
+                cx="${clock.x}"
+                cy="${clock.y}"
+                r="21"
+                class="p4-clock-outer"
+            ></circle>
+
+            <circle
+                cx="${clock.x}"
+                cy="${clock.y}"
+                r="16"
+                class="p4-clock-face"
+            ></circle>
+
+            <line
+                x1="${clock.x}"
+                y1="${clock.y}"
+                x2="${clock.x}"
+                y2="${clock.y - 10}"
+                class="p4-clock-hand"
+            ></line>
+
+            <line
+                x1="${clock.x}"
+                y1="${clock.y}"
+                x2="${clock.x + 8}"
+                y2="${clock.y + 5}"
+                class="p4-clock-hand"
+            ></line>
+
+            <circle
+                cx="${clock.x}"
+                cy="${clock.y}"
+                r="2.5"
+                class="p4-clock-pin"
+            ></circle>
+        </g>
+    `;
+}
+
+function renderPhase4TimeCrystalField() {
+    const data =
+        phase4TimeCrystalData;
+
+    const pattern =
+        data.patterns[
+            phase4TimeCrystalPatternIndex
+        ];
+
+    const clocks = data.clocks;
+
+    const yellowClockIds = [
+        "north",
+        "south"
+    ];
+
+    const blueClockIds = [
+        pattern.blueStart,
+        pattern.blueEnd
+    ];
+
+    const getOrder = clockId => {
+        if (yellowClockIds.includes(clockId)) {
+            return 1;
+        }
+
+        if (blueClockIds.includes(clockId)) {
+            return 3;
+        }
+
+        return 2;
+    };
+
+    const clocksHtml =
+        Object.entries(clocks)
+            .map(([clockId, clock]) => {
+                return createPhase4ClockHtml(
+                    clockId,
+                    clock,
+                    getOrder(clockId)
+                );
+            })
+            .join("");
+
+    const yellowLine =
+        createSvgLine(
+            clocks.north.x,
+            clocks.north.y,
+            clocks.south.x,
+            clocks.south.y,
+            "p4-yellow-line"
+        );
+
+    const blueStart =
+        clocks[pattern.blueStart];
+
+    const blueEnd =
+        clocks[pattern.blueEnd];
+
+    const blueLine =
+        createSvgLine(
+            blueStart.x,
+            blueStart.y,
+            blueEnd.x,
+            blueEnd.y,
+            "p4-blue-line"
+        );
+
+    const phaseField =
+        document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "svg"
+        );
+
+    phaseField.setAttribute(
+        "class",
+        "p4-field-object"
+    );
+
+    phaseField.setAttribute(
+        "viewBox",
+        "0 0 480 480"
+    );
+
+    phaseField.setAttribute(
+        "aria-label",
+        "P4時間結晶 時計配置"
+    );
+
+    phaseField.innerHTML = `
+        ${yellowLine}
+        ${blueLine}
+        ${clocksHtml}
+    `;
+
     field.insertBefore(
         phaseField,
         player

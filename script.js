@@ -192,6 +192,15 @@ let phase4TimeCrystalPatternIndex =
     Math.floor(Math.random() * 2);
 
 let timerId = null;
+/*
+    P4時間結晶用タイマー
+*/
+let phase4TimerId = null;
+/*
+    P4 リターン用
+*/
+let phase4ReturnActivated = false;
+let phase4ReturnPositions = {};
 let battleTime = 0;
 
 /*
@@ -1512,31 +1521,11 @@ function selectPhase(phase) {
     updateActionGuideVisibility();
 }
 
-function renderPhaseOptions() {
-    if (selectedPhase === "P3") {
-        renderPhase3Options();
-        return;
-    }
-
-    if (selectedPhase === "P4") {
-        renderPhase4Options();
-        return;
-    }
-
-    phaseOptions.innerHTML = `
-        <div class="phase-option-box">
-            <div class="preparing-message">
-                ${phaseData[selectedPhase].message}
-            </div>
-        </div>
-    `;
-}
-
 /* =========================
    P4：時間結晶 UI
 ========================= */
-
 function renderPhase4Options() {
+
     const pattern =
         phase4TimeCrystalData.patterns[
             phase4TimeCrystalPatternIndex
@@ -1544,12 +1533,22 @@ function renderPhase4Options() {
 
     phaseOptions.innerHTML = `
         <div class="phase-option-box phase4-option-box">
+
             <div class="phase-option-row">
+
                 <strong>黄色線：</strong>
-                <span class="phase4-yellow-text">北 ↔ 南（固定）</span>
+
+                <span class="phase4-yellow-text">
+                    北 ↔ 南（固定）
+                </span>
+
 
                 <strong>青線：</strong>
-                <span class="phase4-blue-text">${pattern.label}</span>
+
+                <span class="phase4-blue-text">
+                    ${pattern.label}
+                </span>
+
 
                 <button
                     type="button"
@@ -1558,19 +1557,111 @@ function renderPhase4Options() {
                 >
                     青線を再抽選
                 </button>
+
+
+                <button
+                    type="button"
+                    id="phase4-start-button"
+                    class="option-button"
+                >
+                    時間結晶スタート
+                </button>
+
             </div>
 
-            <div class="phase4-order-note">
-                起爆順：
-                <span class="order-yellow">① 黄色線の2時計</span>
-                →
-                <span class="order-unlinked">② 線なしの2時計</span>
-                →
-                <span class="order-blue">③ 青線の2時計</span>
+
+            <div class="phase4-test-row">
+
+                <strong>
+                    YOUデバフ：
+                </strong>
+
+                <select
+                    id="phase4-player-debuff-select"
+                    class="phase4-test-select"
+                >
+                    <option value="random">
+                        ランダム
+                    </option>
+
+                    <option value="blizzard">
+                        ブリザガ
+                    </option>
+
+                    <option value="aero">
+                        エアロガ
+                    </option>
+
+                    <option value="eruption">
+                        エラプション
+                    </option>
+
+                    <option value="water">
+                        ウォタガ
+                    </option>
+
+                    <option value="holy">
+                        ホーリー
+                    </option>
+                </select>
+
+                <span class="phase4-test-note">
+                    ※テスト用
+                </span>
+
             </div>
+
+
+            <div class="phase4-order-note">
+
+                起爆順：
+
+                <span class="order-yellow">
+                    ① 黄色線の2時計
+                </span>
+
+                →
+
+                <span class="order-unlinked">
+                    ② 線なしの2時計
+                </span>
+
+                →
+
+                <span class="order-blue">
+                    ③ 青線の2時計
+                </span>
+
+            </div>
+
         </div>
     `;
 
+
+    /*
+        YOUデバフ選択状態を復元
+    */
+    const debuffSelect =
+        document.getElementById(
+            "phase4-player-debuff-select"
+        );
+
+    debuffSelect.value =
+        phase4ForcedPlayerDebuff;
+
+    debuffSelect.addEventListener(
+        "change",
+        function() {
+
+            phase4ForcedPlayerDebuff =
+                debuffSelect.value;
+        }
+    );
+
+
+    /*
+        青線の再抽選
+    */
     const rerollButton =
         document.getElementById(
             "phase4-reroll-button"
@@ -1579,6 +1670,7 @@ function renderPhase4Options() {
     rerollButton.addEventListener(
         "click",
         function() {
+
             phase4TimeCrystalPatternIndex =
                 Math.floor(
                     Math.random() *
@@ -1588,6 +1680,114 @@ function renderPhase4Options() {
 
             renderPhase4Options();
             renderPhaseField();
+        }
+    );
+
+
+    /*
+        時間結晶スタート
+    */
+    const startButton =
+        document.getElementById(
+            "phase4-start-button"
+        );
+
+    startButton.addEventListener(
+        "click",
+        function() {
+
+            /*
+                P4デバフ配布
+            */
+            /*
+               P4デバフ配布
+            */
+            phase4HorizontalWestToEast = null;
+            phase4ThirdClockFinished = false;
+            phase4HorizontalSecondFinished = false;
+
+        /*
+            白龍2体を初期位置へ再生成
+
+                前回の白龍が残っていても
+                renderPhase4Dragons() 内で削除してから
+               新しい2体を作り直す。
+                */
+            assignPhase4Debuffs();
+
+            /*
+            赤17＋ブリザガ
+            白龍ルート上へ移動開始
+            */
+            movePhase4Red17PlayersToDragonRoute();
+
+            /*
+            エラプション＋青40
+            青線側の「1」へ移動
+            */
+            movePhase4EruptionToFirstPosition();
+            movePhase4AeroToFirstPosition();
+            movePhase4SouthBlueToFirstPosition();
+
+            startPhase4Timer();
+
+
+            /*
+                開始から10秒後に
+                時計1回目を開始
+            */
+            setTimeout(
+    function() {
+
+        /*
+            ①黄色時計の開始と同時に
+            白龍2体も移動開始
+        */
+        triggerPhase4ExplosionSequence();
+
+        /*
+            白龍2体をこのタイミングで再生成
+        */
+        renderPhase4Dragons();
+
+        /*
+            生成した白龍を動かし始める
+        */
+        startPhase4DragonMovement();
+        },
+    10000
+);
+/*
+    =========================
+    P4 エクサ開始
+    =========================
+*/
+
+/*
+    P4 +17秒
+    横エクサ開始
+*/
+setTimeout(
+    function() {
+        startPhase4HorizontalExa();
+    },
+    17000
+);
+
+
+/*
+    P4 +24秒
+    縦エクサ開始
+
+    横3発目の爆発と
+    ほぼ同時に縦①予兆
+*/
+setTimeout(
+    function() {
+        startPhase4VerticalExa();
+    },
+    24000
+);
         }
     );
 }
@@ -2236,6 +2436,326 @@ function renderParty() {
     });
 }
 
+/*
+    P4時間結晶
+    8人へデバフセットをランダム配布する。
+*/
+function assignPhase4Debuffs() {
+
+    /*
+        P4リターン状態をリセット
+    */
+    phase4ReturnActivated = false;
+    phase4ReturnPositions = {};
+
+    const oldReturnMarkers =
+        field.querySelectorAll(
+            ".phase4-return-marker"
+        );
+
+    oldReturnMarkers.forEach(marker => {
+        marker.remove();
+    });
+
+
+    /*
+        元データをコピー
+    */
+    let shuffledSets =
+        [
+            ...phase4TimeCrystalData
+                .debuffSets
+        ];
+
+
+    /*
+        YOUを取得
+    */
+    const playerMember =
+        party.find(
+            member =>
+                member.role ===
+                controlledRole
+        );
+
+
+    /*
+        テスト用固定デバフ
+    */
+    let forcedSet = null;
+
+    if (
+        phase4ForcedPlayerDebuff !==
+        "random"
+    ) {
+
+        const candidates =
+            shuffledSets.filter(
+                set =>
+                    set.attackDebuff.type ===
+                    phase4ForcedPlayerDebuff
+            );
+
+        if (candidates.length > 0) {
+
+            forcedSet =
+                candidates[
+                    Math.floor(
+                        Math.random() *
+                        candidates.length
+                    )
+                ];
+
+            /*
+                YOU用セットを
+                残り候補から削除
+            */
+            shuffledSets =
+                shuffledSets.filter(
+                    set =>
+                        set !== forcedSet
+                );
+        }
+    }
+
+
+    /*
+        残りセットをシャッフル
+    */
+    for (
+        let i =
+            shuffledSets.length - 1;
+
+        i > 0;
+
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
+
+        [
+            shuffledSets[i],
+            shuffledSets[j]
+        ] = [
+            shuffledSets[j],
+            shuffledSets[i]
+        ];
+    }
+
+
+    /*
+        8人へ配布
+    */
+    let npcSetIndex = 0;
+
+    party.forEach(member => {
+
+        let set = null;
+
+
+        /*
+            YOU固定あり
+        */
+        if (
+            forcedSet &&
+            playerMember &&
+            member.role ===
+                playerMember.role
+        ) {
+
+            set = forcedSet;
+
+        } else {
+
+            set =
+                shuffledSets[
+                    npcSetIndex
+                ];
+
+            npcSetIndex++;
+        }
+
+
+        member.debuffs = [
+
+            {
+                type:
+                    set.attackDebuff.type,
+
+                name:
+                    set.attackDebuff.label,
+
+                time:
+                    set.attackDebuff.duration
+            },
+
+            {
+                type:
+                    set.colorDebuff.type,
+
+                name:
+                    set.colorDebuff.label,
+
+                time:
+                    set.colorDebuff.duration
+            },
+
+            {
+                type:
+                    set.returnDebuff.type,
+
+                name:
+                    set.returnDebuff.label,
+
+                time:
+                    set.returnDebuff.duration
+            }
+
+        ];
+
+
+        member.phase4DebuffSetId =
+            set.id;
+
+        member.phase4BlueNumber =
+            null;
+
+        member.phase4RedMarker =
+            null;
+    });
+
+
+    /*
+        -------------------------
+        青40秒
+        1～4
+        -------------------------
+    */
+
+    const blueMembers =
+        party.filter(
+            member =>
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type ===
+                        "blue"
+                )
+        );
+
+    const blueNumbers =
+        [1, 2, 3, 4];
+
+    for (
+        let i =
+            blueNumbers.length - 1;
+
+        i > 0;
+
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
+
+        [
+            blueNumbers[i],
+            blueNumbers[j]
+        ] = [
+            blueNumbers[j],
+            blueNumbers[i]
+        ];
+    }
+
+    blueMembers.forEach(
+        (member, index) => {
+
+            member.phase4BlueNumber =
+                blueNumbers[index];
+        }
+    );
+
+
+    /*
+        -------------------------
+        赤17＋ブリザガ
+        鎖1 / 鎖2
+        -------------------------
+    */
+
+    const redBlizzardMembers =
+        party.filter(
+            member =>
+                member.phase4DebuffSetId ===
+                    "red17_blizzard_1" ||
+
+                member.phase4DebuffSetId ===
+                    "red17_blizzard_2"
+        );
+
+    const chainMarkers =
+        ["chain1", "chain2"];
+
+    if (Math.random() < 0.5) {
+        chainMarkers.reverse();
+    }
+
+    redBlizzardMembers.forEach(
+        (member, index) => {
+
+            member.phase4RedMarker =
+                chainMarkers[index];
+        }
+    );
+
+
+    /*
+        -------------------------
+        赤40＋エアロガ
+        禁止1 / 禁止2
+        -------------------------
+    */
+
+    const redAeroMembers =
+        party.filter(
+            member =>
+                member.phase4DebuffSetId ===
+                    "red40_aero_1" ||
+
+                member.phase4DebuffSetId ===
+                    "red40_aero_2"
+        );
+
+    const stopMarkers =
+        ["stop1", "stop2"];
+
+    if (Math.random() < 0.5) {
+        stopMarkers.reverse();
+    }
+
+    redAeroMembers.forEach(
+        (member, index) => {
+
+            member.phase4RedMarker =
+                stopMarkers[index];
+        }
+    );
+
+
+    /*
+        表示更新
+    */
+    renderParty();
+    renderFieldMembers();
+    renderPhase4PlayerBlueNumber();
+}
+
 /* =========================
    フィールド上のPT表示
 ========================= */
@@ -2257,7 +2777,7 @@ function renderFieldMembers() {
         }
 
         /*
-            操作中のキャラクターは、
+            操作中のキャラクターは
             player要素で表示するためNPCとして作らない。
         */
         if (actorState.isControlled) {
@@ -2279,7 +2799,79 @@ function renderFieldMembers() {
         marker.style.top =
             `${actorState.y}px`;
 
+        /*
+            P4 頭上マーカー
+        */
+        let phase4MarkerHtml = "";
+
+        /*
+            青デバフ
+            1～4
+        */
+        if (member.phase4BlueNumber) {
+
+            phase4MarkerHtml = `
+                <div class="phase4-blue-number">
+                    ${member.phase4BlueNumber}
+                </div>
+            `;
+        }
+
+        /*
+            赤17秒＋ブリザガ
+            鎖1 / 鎖2
+        */
+        if (
+            member.phase4RedMarker === "chain1" ||
+            member.phase4RedMarker === "chain2"
+        ) {
+            const number =
+                member.phase4RedMarker === "chain1"
+                    ? "1"
+                    : "2";
+
+            phase4MarkerHtml = `
+                <div class="phase4-red-marker phase4-chain-marker">
+                    <span class="phase4-marker-symbol">
+                        ⛓
+                    </span>
+
+                    <span class="phase4-marker-number">
+                        ${number}
+                    </span>
+                </div>
+            `;
+        }
+
+        /*
+            赤40秒＋エアロガ
+            禁止1 / 禁止2
+        */
+        if (
+            member.phase4RedMarker === "stop1" ||
+            member.phase4RedMarker === "stop2"
+        ) {
+            const number =
+                member.phase4RedMarker === "stop1"
+                    ? "1"
+                    : "2";
+
+            phase4MarkerHtml = `
+                <div class="phase4-red-marker phase4-stop-marker">
+                    <span class="phase4-marker-symbol">
+                        🚫
+                    </span>
+
+                    <span class="phase4-marker-number">
+                        ${number}
+                    </span>
+                </div>
+            `;
+        }
+
         marker.innerHTML = `
+            ${phase4MarkerHtml}
+
             ${member.role}
 
             <div class="field-member-label">
@@ -2485,6 +3077,9 @@ function renderPhaseField() {
 
     if (selectedPhase === "P4") {
         renderPhase4TimeCrystalField();
+
+        renderPhase4Dragons();
+
         return;
     }
 
@@ -2588,6 +3183,156 @@ function renderPhaseField() {
    P4：時間結晶 フィールド
 ========================= */
 
+/*
+    P4時間結晶の時計爆発円を作る。
+
+    今は確認用として北時計だけ使用する。
+    半径は100pxから調整開始。
+*/
+function createPhase4ExplosionHtml(
+    clock,
+    radius = 145,
+    extraClass = ""
+) {
+    return `
+        <circle
+            cx="${clock.x}"
+            cy="${clock.y}"
+            r="${radius}"
+            class="p4-clock-explosion ${extraClass}"
+        ></circle>
+    `;
+}
+
+
+/*
+    北時計の爆発範囲を確認するための
+    一時的なテスト処理。
+*/
+function triggerPhase4Explosion(
+    selector
+) {
+    const explosions =
+        field.querySelectorAll(
+            selector
+        );
+
+    if (explosions.length === 0) {
+        return;
+    }
+
+    explosions.forEach(
+        explosion => {
+            explosion.classList.remove(
+                "active"
+            );
+        }
+    );
+
+    field.getBoundingClientRect();
+
+    explosions.forEach(
+        explosion => {
+            explosion.classList.add(
+                "active"
+            );
+        }
+    );
+
+    setTimeout(
+        function() {
+            explosions.forEach(
+                explosion => {
+                    explosion.classList.remove(
+                        "active"
+                    );
+                }
+            );
+        },
+        1200
+    );
+}
+
+function triggerPhase4ExplosionSequence() {
+
+    /*
+        ① 黄色時計爆発
+    */
+    triggerPhase4Explosion(
+        ".p4-test-yellow-explosion"
+    );
+
+    /*
+        黄色時計の爆発が終わってから
+        エラプション担当は
+        ②の頭割り待機位置へ移動開始
+    */
+setTimeout(
+    function() {
+
+        /*
+            黄色時計終了後
+        */
+
+        /*
+            北側
+        */
+        movePhase4EruptionToSecondPosition();
+
+        /*
+            南側
+            エアロ ① → ②
+        */
+        movePhase4AeroToSecondPosition();
+        movePhase4SouthBlueToSecondPosition();
+
+    },
+    1200
+);
+
+    /*
+        ② 線なし時計
+        6秒後
+    */
+    setTimeout(
+        function() {
+            triggerPhase4Explosion(
+                ".p4-test-unlinked-explosion"
+            );
+        },
+        6000
+    );
+
+    /*
+        ③ 青線時計
+        11秒後
+    */
+setTimeout(
+    function() {
+
+        triggerPhase4Explosion(
+            ".p4-test-blue-explosion"
+        );
+
+
+        /*
+            3回目時計終了
+        */
+        phase4ThirdClockFinished =
+            true;
+
+
+        /*
+            エラプ③にいた6人
+            → 横エクサ待機位置へ
+        */
+        movePhase4NorthSixToHorizontalWait();
+
+    },
+    11000
+);
+}
+
 function createPhase4ClockHtml(
     clockId,
     clock,
@@ -2638,7 +3383,6 @@ function createPhase4ClockHtml(
         </g>
     `;
 }
-
 function renderPhase4TimeCrystalField() {
     const data =
         phase4TimeCrystalData;
@@ -2660,12 +3404,23 @@ function renderPhase4TimeCrystalField() {
         pattern.blueEnd
     ];
 
+    const unlinkedClockIds =
+        pattern.unlinked;
+
     const getOrder = clockId => {
-        if (yellowClockIds.includes(clockId)) {
+        if (
+            yellowClockIds.includes(
+                clockId
+            )
+        ) {
             return 1;
         }
 
-        if (blueClockIds.includes(clockId)) {
+        if (
+            blueClockIds.includes(
+                clockId
+            )
+        ) {
             return 3;
         }
 
@@ -2674,13 +3429,15 @@ function renderPhase4TimeCrystalField() {
 
     const clocksHtml =
         Object.entries(clocks)
-            .map(([clockId, clock]) => {
-                return createPhase4ClockHtml(
-                    clockId,
-                    clock,
-                    getOrder(clockId)
-                );
-            })
+            .map(
+                ([clockId, clock]) => {
+                    return createPhase4ClockHtml(
+                        clockId,
+                        clock,
+                        getOrder(clockId)
+                    );
+                }
+            )
             .join("");
 
     const yellowLine =
@@ -2693,10 +3450,14 @@ function renderPhase4TimeCrystalField() {
         );
 
     const blueStart =
-        clocks[pattern.blueStart];
+        clocks[
+            pattern.blueStart
+        ];
 
     const blueEnd =
-        clocks[pattern.blueEnd];
+        clocks[
+            pattern.blueEnd
+        ];
 
     const blueLine =
         createSvgLine(
@@ -2706,6 +3467,152 @@ function renderPhase4TimeCrystalField() {
             blueEnd.y,
             "p4-blue-line"
         );
+
+    /*
+        ① 黄色線の2時計
+        南側だけ30px下へずらす。
+    */
+    const yellowExplosionsHtml = `
+        ${createPhase4ExplosionHtml(
+            clocks.north,
+            145,
+            "p4-test-yellow-explosion"
+        )}
+
+        ${createPhase4ExplosionHtml(
+            {
+                x: clocks.south.x,
+                y: clocks.south.y + 30
+            },
+            145,
+            "p4-test-yellow-explosion"
+        )}
+    `;
+
+    /*
+        ② 線なしの2時計
+
+        青線パターンによって
+        自動的に対象が切り替わる。
+    */
+    const unlinkedExplosionsHtml =
+    unlinkedClockIds
+        .map(clockId => {
+
+            let offsetX = 0;
+            let offsetY = 0;
+
+            /*
+                北西
+                左・下
+            */
+            if (clockId === "northWest") {
+                offsetX = -5;
+                offsetY = +5;
+            }
+
+            /*
+                南東
+                右
+            */
+            if (clockId === "southEast") {
+                offsetX = +15;
+                offsetY = +5;
+            }
+
+            /*
+                北東
+                ここで調整
+            */
+            if (clockId === "northEast") {
+                offsetX = +15;
+                offsetY = +5;
+            }
+
+            /*
+                南西
+                ここで調整
+            */
+            if (clockId === "southWest") {
+                offsetX = 0;
+                offsetY = +5;
+            }
+
+            return createPhase4ExplosionHtml(
+                {
+                    x:
+                        clocks[clockId].x +
+                        offsetX,
+
+                    y:
+                        clocks[clockId].y +
+                        offsetY
+                },
+                145,
+                "p4-test-unlinked-explosion"
+            );
+        })
+        .join("");
+        /*
+    ③ 青線につながっている2時計
+
+    青線パターンによって
+    対象の2時計が自動で切り替わる。
+*/
+const blueExplosionsHtml =
+    blueClockIds
+        .map(clockId => {
+
+            let offsetX = 0;
+            let offsetY = 0;
+
+            /*
+                北西
+            */
+            if (clockId === "northWest") {
+                offsetX = -5;
+                offsetY = +5;
+            }
+
+            /*
+                南東
+            */
+            if (clockId === "southEast") {
+                offsetX = +10;
+                offsetY = +5;
+            }
+
+            /*
+                北東
+            */
+            if (clockId === "northEast") {
+                offsetX = +15;
+                offsetY = +5;
+            }
+
+            /*
+                南西
+            */
+            if (clockId === "southWest") {
+                offsetX = -10;
+                offsetY = +9;
+            }
+
+            return createPhase4ExplosionHtml(
+                {
+                    x:
+                        clocks[clockId].x +
+                        offsetX,
+
+                    y:
+                        clocks[clockId].y +
+                        offsetY
+                },
+                145,
+                "p4-test-blue-explosion"
+            );
+        })
+        .join("");
 
     const phaseField =
         document.createElementNS(
@@ -2731,6 +3638,11 @@ function renderPhase4TimeCrystalField() {
     phaseField.innerHTML = `
         ${yellowLine}
         ${blueLine}
+
+        ${yellowExplosionsHtml}
+        ${unlinkedExplosionsHtml}
+        ${blueExplosionsHtml}
+
         ${clocksHtml}
     `;
 
@@ -3185,6 +4097,421 @@ function updateTimers() {
         pauseTimer();
     }
 }
+/*
+    P4時間結晶
+    タイマー開始
+*/
+function startPhase4Timer() {
+
+    /*
+        二重起動防止
+    */
+    if (phase4TimerId !== null) {
+        clearInterval(
+            phase4TimerId
+        );
+    }
+
+    phase4TimerId =
+        setInterval(
+            updatePhase4Timers,
+            100
+        );
+}
+
+
+/*
+    P4時間結晶
+    デバフ残り時間更新
+*/
+/*
+    P4 リターン発動
+
+    8人全員の現在位置を保存し、
+    その場所へ▶マーカーを設置する。
+*/
+function activatePhase4Return() {
+
+
+    /*
+        二重発動防止
+    */
+    if (phase4ReturnActivated) {
+        return;
+    }
+
+    phase4ReturnActivated = true;
+
+    /*
+        前回の保存位置をリセット
+    */
+    phase4ReturnPositions = {};
+
+    /*
+        古い▶マーカーがあれば削除
+    */
+    const oldMarkers =
+        field.querySelectorAll(
+            ".phase4-return-marker"
+        );
+
+    oldMarkers.forEach(marker => {
+        marker.remove();
+    });
+
+    /*
+        8人全員の現在位置を保存
+    */
+    party.forEach(member => {
+
+        const actor =
+            actorStates[member.role];
+
+        if (!actor) {
+            return;
+        }
+
+        phase4ReturnPositions[
+            member.role
+        ] = {
+            x: actor.x,
+            y: actor.y
+        };
+
+        /*
+            保存位置に▶を作る
+        */
+        const marker =
+            document.createElement("div");
+
+        marker.className =
+            "phase4-return-marker";
+
+        marker.textContent =
+            "▶";
+
+        marker.dataset.role =
+            member.role;
+
+        marker.style.left =
+            `${actor.x}px`;
+
+        marker.style.top =
+            `${actor.y}px`;
+
+               field.appendChild(marker);
+    });
+
+
+    /*
+        リターン地点保存後も
+        5秒間は自由に移動できる。
+
+        5秒後に保存地点へ強制帰還。
+    */
+    setTimeout(
+        function() {
+            executePhase4Return();
+        },
+        5000
+    );
+}
+/*
+    P4 リターン帰還
+
+    保存した位置へ
+    8人全員を強制的に戻す。
+*/
+function executePhase4Return() {
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[member.role];
+
+        const savedPosition =
+            phase4ReturnPositions[
+                member.role
+            ];
+
+        if (
+            !actor ||
+            !savedPosition
+        ) {
+            return;
+        }
+
+        /*
+            保存地点へ強制帰還
+        */
+        actor.x =
+            savedPosition.x;
+
+        actor.y =
+            savedPosition.y;
+
+        /*
+            NPCが移動中だった場合、
+            古い目的地へ再び歩き出さないようにする。
+        */
+        actor.targetX =
+            savedPosition.x;
+
+        actor.targetY =
+            savedPosition.y;
+    });
+
+
+    /*
+        YOUの表示位置更新
+    */
+    updatePlayerPosition();
+
+    /*
+        NPCの表示位置更新
+    */
+    renderFieldMembers();
+
+    /*
+        YOUのP4頭上マーカーも再表示
+    */
+    renderPhase4PlayerBlueNumber();
+
+
+    /*
+        帰還完了後、▶を削除
+    */
+    const returnMarkers =
+        field.querySelectorAll(
+            ".phase4-return-marker"
+        );
+
+    returnMarkers.forEach(marker => {
+        marker.remove();
+    });
+}
+
+function updatePhase4Timers() {
+
+    /*
+        =========================
+        この瞬間の8人の座標を保存
+
+        同時着弾する攻撃について、
+        処理順によって座標が変わらないようにする。
+        =========================
+    */
+    const phase4PositionSnapshot = {};
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+        phase4PositionSnapshot[
+            member.role
+        ] = {
+            x: actor.x,
+            y: actor.y
+        };
+    });
+
+
+    party.forEach(member => {
+
+        member.debuffs.forEach(
+            debuff => {
+
+                if (debuff.time <= 0) {
+                    return;
+                }
+
+                const previousTime =
+                    debuff.time;
+
+                debuff.time -= 0.1;
+
+                /*
+                    小数誤差防止
+                */
+                debuff.time =
+                    Math.round(
+                        debuff.time * 10
+                    ) / 10;
+
+                if (debuff.time < 0) {
+                    debuff.time = 0;
+                }
+
+
+                /*
+                    ブリザガ
+                */
+                if (
+                    debuff.type ===
+                        "blizzard" &&
+                    previousTime > 0 &&
+                    debuff.time <= 0
+                ) {
+                triggerPhase4Blizzard(
+                   member,
+                    phase4PositionSnapshot
+                );
+                }
+
+
+                /*
+                    エアロガ
+                */
+                if (
+                    debuff.type ===
+                        "aero" &&
+                    previousTime > 0 &&
+                    debuff.time <= 0
+                ) {
+                triggerPhase4Aero(
+                 member,
+                 phase4PositionSnapshot     
+                );
+
+                /*
+                    エアロガ担当
+                    ② → ③
+                */
+                movePhase4AeroToThirdPosition(
+                   member
+                );
+
+                /*
+                   エアロガで飛ばされた青3人
+                    → エラプション②へ集合
+                */
+                movePhase4SouthBlueToEruptionSecond();
+                }
+
+
+                /*
+                    エラプション
+                */
+                if (
+                    debuff.type ===
+                        "eruption" &&
+                    previousTime > 0 &&
+                    debuff.time <= 0
+                ) {
+                    triggerPhase4Eruption(
+                        member
+                    );
+                }
+
+
+                /*
+                    ウォタガ
+                */
+                if (
+                    debuff.type ===
+                        "water" &&
+                    previousTime > 0 &&
+                    debuff.time <= 0
+                ) {
+                    triggerPhase4Water(
+                        member
+                    );
+                }
+
+
+                /*
+    ホーリー
+*/
+if (
+    debuff.type ===
+        "holy" &&
+    previousTime > 0 &&
+    debuff.time <= 0
+) {
+    triggerPhase4Holy(
+        member
+    );
+}
+
+/*
+    青40
+    残り1秒までに
+    青玉を回収できなければ失敗
+*/
+if (
+    debuff.type ===
+        "blue" &&
+    previousTime > 1 &&
+    debuff.time <= 1
+) {
+    failPhase4(
+        `青玉未回収：${member.role}`
+    );
+}
+            }
+        );
+    });
+
+
+    /*
+        リターン33秒
+    */
+    if (!phase4ReturnActivated) {
+
+        const returnDebuff =
+            party
+                .flatMap(
+                    member =>
+                        member.debuffs
+                )
+                .find(
+                    debuff =>
+                        debuff.type ===
+                        "return"
+                );
+
+        if (
+            returnDebuff &&
+            returnDebuff.time <= 0
+        ) {
+            activatePhase4Return();
+        }
+    }
+
+
+   /*
+    エアロ担当が
+    白龍との接触で赤を消したら
+    ③ → ④
+*/
+movePhase4AeroToFourthPosition();
+
+
+/*
+    赤17＋ブリザガ
+
+    白龍接触済み
+    ＋
+    ブリザガ残り0.2秒以下
+
+    ならエラプション側へ移動開始
+*/
+updatePhase4Red17BlizzardMovement();
+
+
+/*
+    PTリスト更新
+*/
+renderParty();
+
+}
 
 /*
     P3開始時のNPC移動先を設定する。
@@ -3254,6 +4581,30 @@ function resetBattleState() {
 
     party = cloneData(baseParty);
     initializeActorStates();
+    /*
+    P4の未回収青玉を削除
+    */
+    field
+    .querySelectorAll(
+        ".phase4-blue-orb"
+    )
+    .forEach(
+        orb => orb.remove()
+    );
+    /*
+    P4 白龍の移動を停止
+*/
+if (
+    phase4DragonAnimationId !== null
+) {
+    cancelAnimationFrame(
+        phase4DragonAnimationId
+    );
+
+    phase4DragonAnimationId = null;
+}
+
+phase4DragonStartTime = null;
 
     battleTime = 0;
     currentActionStep = null;
@@ -3325,6 +4676,171 @@ function updatePlayerPosition() {
 
     player.style.top =
         `${actor.y - playerRadius}px`;
+
+    /*
+        P4でYOUに頭上マーカーが付いている場合、
+        青・鎖・禁止のどれでもYOUに追従させる。
+    */
+    const phase4Marker =
+        field.querySelector(
+            ".phase4-player-marker"
+        );
+
+    if (phase4Marker) {
+
+        phase4Marker.style.left =
+            `${actor.x}px`;
+
+        phase4Marker.style.top =
+            `${actor.y - 30}px`;
+    }
+}
+
+function renderPhase4PlayerBlueNumber() {
+
+    /*
+        以前表示したYOU用P4マーカーを削除
+    */
+    const oldMarker =
+        field.querySelector(
+            ".phase4-player-marker"
+        );
+
+    if (oldMarker) {
+        oldMarker.remove();
+    }
+
+    /*
+        YOUのpartyデータを取得
+    */
+    const member =
+        party.find(
+            member =>
+                member.role === controlledRole
+        );
+
+    if (!member) {
+        return;
+    }
+
+    /*
+        YOUの現在位置を取得
+    */
+    const actor =
+        actorStates[controlledRole];
+
+    if (!actor) {
+        return;
+    }
+
+    let marker = null;
+
+
+    /*
+        青40秒
+        1～4マーカー
+    */
+    if (member.phase4BlueNumber) {
+
+        marker =
+            document.createElement("div");
+
+        marker.className =
+            "phase4-blue-number " +
+            "phase4-player-marker " +
+            "phase4-player-blue-number";
+
+        marker.textContent =
+            member.phase4BlueNumber;
+    }
+
+
+    /*
+        赤17秒＋ブリザガ
+        鎖1 / 鎖2
+    */
+    if (
+        member.phase4RedMarker === "chain1" ||
+        member.phase4RedMarker === "chain2"
+    ) {
+
+        const number =
+            member.phase4RedMarker === "chain1"
+                ? "1"
+                : "2";
+
+        marker =
+            document.createElement("div");
+
+        marker.className =
+            "phase4-red-marker " +
+            "phase4-chain-marker " +
+            "phase4-player-marker";
+
+        marker.innerHTML = `
+            <span class="phase4-marker-symbol">
+                ⛓
+            </span>
+
+            <span class="phase4-marker-number">
+                ${number}
+            </span>
+        `;
+    }
+
+
+    /*
+        赤40秒＋エアロガ
+        禁止1 / 禁止2
+    */
+    if (
+        member.phase4RedMarker === "stop1" ||
+        member.phase4RedMarker === "stop2"
+    ) {
+
+        const number =
+            member.phase4RedMarker === "stop1"
+                ? "1"
+                : "2";
+
+        marker =
+            document.createElement("div");
+
+        marker.className =
+            "phase4-red-marker " +
+            "phase4-stop-marker " +
+            "phase4-player-marker";
+
+        marker.innerHTML = `
+            <span class="phase4-marker-symbol">
+                🚫
+            </span>
+
+            <span class="phase4-marker-number">
+                ${number}
+            </span>
+        `;
+    }
+
+
+    /*
+        P4マーカーを持っていない場合
+    */
+    if (!marker) {
+        return;
+    }
+
+
+    /*
+        YOU頭上へ配置
+    */
+    marker.style.left =
+        `${actor.x}px`;
+
+    marker.style.top =
+        `${actor.y - 30}px`;
+
+    field.appendChild(marker);
 }
 
 function canMoveTo(nextX, nextY) {
@@ -3526,3 +5042,5993 @@ updateActionGuideVisibility();
 
 requestAnimationFrame(gameLoop);
 
+function triggerPhase4Blizzard(
+    member,
+    positionSnapshot
+) {
+
+    /*
+        14秒着弾の瞬間に保存した
+        ブリザガ担当の位置
+    */
+    const sourcePosition =
+        positionSnapshot[
+            member.role
+        ];
+
+    if (!sourcePosition) {
+        return;
+    }
+
+
+    /*
+        ブリザガの見た目も
+        14秒着弾時点の位置に固定
+    */
+    const aoe =
+        document.createElement("div");
+
+    aoe.className =
+        "phase4-blizzard-aoe";
+
+    aoe.style.left =
+        `${sourcePosition.x}px`;
+
+    aoe.style.top =
+        `${sourcePosition.y}px`;
+
+    field.appendChild(aoe);
+
+
+    /*
+        当たり判定も
+        同じ14秒着弾時点の座標を使用
+    */
+    checkPhase4BlizzardHit(
+        member,
+        positionSnapshot
+    );
+
+
+    /*
+        見た目だけ1.2秒残す
+    */
+    setTimeout(
+        function() {
+            aoe.remove();
+        },
+        1200
+    );
+}
+
+function checkPhase4BlizzardHit(
+    sourceMember,
+    positionSnapshot
+) {
+
+    /*
+        ブリザガ発動瞬間の
+        保存済み座標を使用
+    */
+    const sourcePosition =
+        positionSnapshot[
+            sourceMember.role
+        ];
+
+    if (!sourcePosition) {
+        return;
+    }
+
+
+    const innerRadius = 55;
+    const outerRadius = 145;
+
+
+    party.forEach(member => {
+
+        /*
+            ブリザガ対象本人は
+            判定しない
+        */
+        if (
+            member.role ===
+            sourceMember.role
+        ) {
+            return;
+        }
+
+
+        const position =
+            positionSnapshot[
+                member.role
+            ];
+
+        if (!position) {
+            return;
+        }
+
+
+        const dx =
+            position.x -
+            sourcePosition.x;
+
+        const dy =
+            position.y -
+            sourcePosition.y;
+
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        /*
+            発動瞬間に
+            ドーナツ範囲内なら失敗
+        */
+        if (
+            distance > innerRadius &&
+            distance <= outerRadius
+        ) {
+            failPhase4(
+                `ブリザガ被弾：${member.role}`
+            );
+        }
+    });
+}
+
+/*
+    P4 共通失敗処理
+*/
+/*
+    P4 共通失敗処理
+
+    alertではなく
+    右側のP4判定欄へ表示する。
+*/
+function failPhase4(
+    reason
+) {
+
+    console.log(
+        "P4失敗:",
+        reason
+    );
+
+
+    const failLog =
+        document.getElementById(
+            "phase4-fail-log"
+        );
+
+    if (!failLog) {
+        return;
+    }
+
+
+    /*
+        最初の
+        「失敗なし」を消す
+    */
+    if (
+        failLog.textContent.trim() ===
+        "失敗なし"
+    ) {
+        failLog.innerHTML = "";
+    }
+
+
+    const item =
+        document.createElement("div");
+
+    item.className =
+        "phase4-fail-log-item";
+
+    item.textContent =
+        `× ${reason}`;
+
+    failLog.appendChild(
+        item
+    );
+}
+
+/*
+    P4 エアロガ発動
+*/
+/*
+    P4 エアロガ発動
+*/
+function triggerPhase4Aero(member) {
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+
+    const aoe =
+        document.createElement("div");
+
+    aoe.className =
+        "phase4-aero-aoe";
+
+    aoe.style.left =
+        `${actor.x}px`;
+
+    aoe.style.top =
+        `${actor.y}px`;
+
+    field.appendChild(aoe);
+
+
+    /*
+        エアロガ対象以外を
+        外向きへノックバック
+    */
+    applyPhase4AeroKnockback(
+        member
+    );
+
+
+    setTimeout(
+        function() {
+            aoe.remove();
+        },
+        1200
+    );
+}
+
+/*
+    P4 テスト用
+    YOUへ固定する攻撃デバフ
+*/
+let phase4ForcedPlayerDebuff =
+    "random";
+
+    /*
+    P4 エアロガ
+    ノックバック処理
+*/
+function applyPhase4AeroKnockback(
+    sourceMember
+) {
+
+    const sourceActor =
+        actorStates[
+            sourceMember.role
+        ];
+
+    if (!sourceActor) {
+        return;
+    }
+
+
+    /*
+        エアロガ範囲
+    */
+    const aeroRadius = 145;
+
+
+    /*
+        ノックバック距離
+    */
+    const knockbackDistance = 280;
+
+
+    party.forEach(member => {
+
+        /*
+            エアロガ対象本人は
+            ノックバックしない
+        */
+        if (
+            member.role ===
+            sourceMember.role
+        ) {
+            return;
+        }
+
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const dx =
+            actor.x -
+            sourceActor.x;
+
+        const dy =
+            actor.y -
+            sourceActor.y;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        /*
+            エアロガ範囲外なら
+            ノックバックしない
+        */
+        if (
+            distance >
+            aeroRadius
+        ) {
+            return;
+        }
+
+
+        /*
+            ノックバック方向
+        */
+        let directionX = 0;
+        let directionY = -1;
+
+        if (distance > 0) {
+
+            directionX =
+                dx / distance;
+
+            directionY =
+                dy / distance;
+        }
+
+
+        /*
+            外向きに280ノックバック
+        */
+        actor.x +=
+            directionX *
+            knockbackDistance;
+
+        actor.y +=
+            directionY *
+            knockbackDistance;
+
+
+        /*
+            NPCの移動先も
+            ノックバック先へ合わせる
+        */
+        actor.targetX =
+            actor.x;
+
+        actor.targetY =
+            actor.y;
+
+
+        /*
+            =========================
+            場外判定
+            =========================
+
+            フィールド半径 240
+            キャラクター半径 17
+
+            240 - 17 = 223
+        */
+
+        const fieldCenterX = 240;
+        const fieldCenterY = 240;
+
+        const safeRadius =
+            fieldRadius -
+            playerRadius;
+
+        const fieldDx =
+            actor.x -
+            fieldCenterX;
+
+        const fieldDy =
+            actor.y -
+            fieldCenterY;
+
+        const distanceFromCenter =
+            Math.sqrt(
+                fieldDx * fieldDx +
+                fieldDy * fieldDy
+            );
+
+
+        /*
+            キャラクターの外周が
+            フィールドから出たら失敗
+        */
+        if (
+            distanceFromCenter >
+            safeRadius
+        ) {
+            failPhase4(
+                `エアロガで場外：${member.role}`
+            );
+        }
+    });
+
+
+    /*
+        YOUの位置更新
+    */
+    updatePlayerPosition();
+
+
+    /*
+        NPCの位置更新
+    */
+    renderFieldMembers();
+
+
+    /*
+        YOUの頭上マーカー更新
+    */
+    renderPhase4PlayerBlueNumber();
+}
+
+/*
+    P4 エラプション発動
+*/
+function triggerPhase4Eruption(member) {
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+
+    const aoe =
+        document.createElement("div");
+
+    aoe.className =
+        "phase4-eruption-aoe";
+
+    aoe.style.left =
+        `${actor.x}px`;
+
+    aoe.style.top =
+        `${actor.y}px`;
+
+    field.appendChild(aoe);
+
+
+    /*
+        エラプション当たり判定
+    */
+    checkPhase4EruptionHit(
+        member
+    );
+
+
+    /*
+        AoE表示を消す
+    */
+    setTimeout(
+        function() {
+            aoe.remove();
+        },
+        1200
+    );
+}
+
+
+/*
+    P4 エラプション
+    当たり判定
+*/
+/*
+    P4 エラプション
+    当たり判定
+*/
+function checkPhase4EruptionHit(
+    sourceMember
+) {
+
+    const sourceActor =
+        actorStates[
+            sourceMember.role
+        ];
+
+    if (!sourceActor) {
+        return;
+    }
+
+
+    /*
+        仮半径
+    */
+    const eruptionRadius = 70;
+
+
+    party.forEach(member => {
+
+        /*
+            エラプション対象本人は
+            判定しない
+        */
+        if (
+            member.role ===
+            sourceMember.role
+        ) {
+            return;
+        }
+
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const dx =
+            actor.x -
+            sourceActor.x;
+
+        const dy =
+            actor.y -
+            sourceActor.y;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        console.log(
+            "エラプション判定:",
+            sourceMember.role,
+            "→",
+            member.role,
+            "距離:",
+            distance
+        );
+
+
+        if (
+            distance <=
+            eruptionRadius
+        ) {
+            failPhase4(
+                `エラプション被弾：${member.role}`
+            );
+        }
+    });
+}
+
+function renderPhaseOptions() {
+    if (selectedPhase === "P3") {
+        renderPhase3Options();
+        return;
+    }
+
+    if (selectedPhase === "P4") {
+        renderPhase4Options();
+        return;
+    }
+
+    phaseOptions.innerHTML = `
+        <div class="phase-option-box">
+            <div class="preparing-message">
+                ${phaseData[selectedPhase].message}
+            </div>
+        </div>
+    `;
+}
+
+/*
+    =========================
+    P4 ウォタガ発動
+    =========================
+*/
+function triggerPhase4Water(
+    member
+) {
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+
+    /*
+        頭割り範囲を表示
+    */
+    const aoe =
+        document.createElement("div");
+
+    aoe.className =
+        "phase4-water-aoe";
+
+    aoe.style.left =
+        `${actor.x}px`;
+
+    aoe.style.top =
+        `${actor.y}px`;
+
+    field.appendChild(
+        aoe
+    );
+
+
+    /*
+        4人頭割り判定
+    */
+    checkPhase4WaterStack(
+        member
+    );
+
+
+    /*
+        AoEを消す
+    */
+    setTimeout(
+        function() {
+            aoe.remove();
+        },
+        1200
+    );
+}
+
+
+/*
+    =========================
+    P4 ウォタガ
+    4人頭割り判定
+    =========================
+*/
+function checkPhase4WaterStack(
+    sourceMember
+) {
+
+    const sourceActor =
+        actorStates[
+            sourceMember.role
+        ];
+
+    if (!sourceActor) {
+        return;
+    }
+
+
+    /*
+        頭割り範囲
+
+        まずは仮で半径70。
+        見た目を確認してから調整する。
+    */
+    const waterRadius = 70;
+
+    let playerCount = 0;
+
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const dx =
+            actor.x -
+            sourceActor.x;
+
+        const dy =
+            actor.y -
+            sourceActor.y;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        if (
+            distance <=
+            waterRadius
+        ) {
+            playerCount++;
+        }
+    });
+
+
+    console.log(
+        "ウォタガ頭割り人数:",
+        playerCount
+    );
+
+
+    /*
+        対象本人を含め
+        ちょうど4人なら成功
+    */
+    if (
+        playerCount !== 4
+    ) {
+        failPhase4(
+            `ウォタガ頭割り：${playerCount}人`
+        );
+    }
+}
+
+/*
+    =========================
+    P4 ホーリー発動
+    =========================
+*/
+function triggerPhase4Holy(
+    member
+) {
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+
+    const aoe =
+        document.createElement("div");
+
+    aoe.className =
+        "phase4-holy-aoe";
+
+    aoe.style.left =
+        `${actor.x}px`;
+
+    aoe.style.top =
+        `${actor.y}px`;
+
+    field.appendChild(
+        aoe
+    );
+
+
+    /*
+        頭割り人数判定
+    */
+    checkPhase4HolyStack(
+        member
+    );
+
+
+    /*
+        ホーリー処理後、
+        北側6人全員を
+        エラプション③へ移動
+    */
+        movePhase4NorthSixToEruptionThird();
+
+
+    setTimeout(
+        function() {
+            aoe.remove();
+        },
+        1200
+    );
+}
+
+
+/*
+    =========================
+    P4 ホーリー
+    頭割り判定
+    =========================
+*/
+function checkPhase4HolyStack(
+    sourceMember
+) {
+
+    const sourceActor =
+        actorStates[
+            sourceMember.role
+        ];
+
+    if (!sourceActor) {
+        return;
+    }
+
+
+    /*
+        仮半径70
+        後で見た目に合わせて調整
+    */
+    const holyRadius = 70;
+
+    let playerCount = 0;
+
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const dx =
+            actor.x -
+            sourceActor.x;
+
+        const dy =
+            actor.y -
+            sourceActor.y;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        if (
+            distance <=
+            holyRadius
+        ) {
+            playerCount++;
+        }
+    });
+
+
+    console.log(
+        "ホーリー頭割り人数:",
+        playerCount
+    );
+
+
+    /*
+        対象本人を含めて
+        5人以上なら成功
+    */
+    if (
+        playerCount < 5
+    ) {
+        failPhase4(
+            `ホーリー頭割り：${playerCount}人`
+        );
+    }
+}
+/*
+    =========================
+    P4 白龍
+    開始位置テスト用
+    =========================
+*/
+
+const phase4DragonSettings = {
+
+    /*
+        開始位置
+    */
+    clockwise: {
+        startX: 210,
+        startY: 75
+    },
+
+    counterClockwise: {
+        startX: 270,
+        startY: 75
+    },
+
+
+    /*
+        =========================
+        移動ルート調整用
+        =========================
+
+        centerX / centerY
+            円運動の中心
+
+        radius
+            龍が通るライン
+            小さくすると内側
+            大きくすると外側
+
+        speed
+            1秒あたりの角度
+    */
+    route: {
+        centerX: 240,
+        centerY: 240,
+
+        radius: 175,
+
+        speed: 25
+    }
+};
+
+
+/*
+    白龍2体を表示する
+*/
+function renderPhase4Dragons() {
+
+    /*
+        以前の白龍を削除
+    */
+    field
+        .querySelectorAll(
+            ".phase4-dragon-head"
+        )
+        .forEach(
+            dragon => {
+                dragon.remove();
+            }
+        );
+
+
+    /*
+        時計回り
+    */
+    createPhase4Dragon(
+        "clockwise",
+        phase4DragonSettings
+            .clockwise
+    );
+
+
+    /*
+        反時計回り
+    */
+    createPhase4Dragon(
+        "counter-clockwise",
+        phase4DragonSettings
+            .counterClockwise
+    );
+}
+
+
+/*
+    白龍1体を作る
+*/
+function createPhase4Dragon(
+    direction,
+    settings
+) {
+
+    const dragon =
+        document.createElement(
+            "div"
+        );
+
+    dragon.className =
+        "phase4-dragon-head";
+
+    dragon.dataset.direction =
+        direction;
+
+    /*
+        この龍が処理した
+        赤デバフの人数
+    */
+    dragon.dataset.redContactCount =
+        "0";
+
+    dragon.innerHTML = `
+        <div class="phase4-dragon-symbol">
+            🐉
+        </div>
+    `;
+
+    dragon.style.left =
+        `${settings.startX}px`;
+
+    dragon.style.top =
+        `${settings.startY}px`;
+
+    field.appendChild(
+        dragon
+    );
+}
+/*
+    =========================
+    P4 白龍
+    移動開始
+    =========================
+*/
+
+let phase4DragonAnimationId =
+    null;
+
+let phase4DragonStartTime =
+    null;
+
+
+function startPhase4DragonMovement() {
+
+    /*
+        二重起動防止
+    */
+    if (
+        phase4DragonAnimationId !==
+        null
+    ) {
+        cancelAnimationFrame(
+            phase4DragonAnimationId
+        );
+    }
+
+
+    phase4DragonStartTime =
+        performance.now();
+
+
+    phase4DragonAnimationId =
+        requestAnimationFrame(
+            updatePhase4DragonMovement
+        );
+}
+
+
+/*
+    白龍2体を円周上で動かす
+*/
+function updatePhase4DragonMovement(
+    currentTime
+) {
+
+    const elapsedSeconds =
+        (
+            currentTime -
+            phase4DragonStartTime
+        ) / 1000;
+
+
+    const route =
+        phase4DragonSettings.route;
+
+
+    /*
+        経過時間から
+        移動角度を計算
+    */
+    const movementAngle =
+        elapsedSeconds *
+        route.speed;
+
+
+    /*
+        北を基準の0度にする
+    */
+    const startAngle =
+        -90;
+
+
+    /*
+        時計回り
+    */
+    updatePhase4DragonPosition(
+        "clockwise",
+        startAngle +
+            movementAngle
+    );
+
+
+    /*
+        反時計回り
+    */
+ updatePhase4DragonPosition(
+    "counter-clockwise",
+    startAngle -
+        movementAngle
+);
+
+
+/*
+    龍が赤デバフ持ちに
+    接触したか確認
+*/
+/*
+    白龍と赤の接触判定
+*/
+checkPhase4DragonRedContact();
+
+
+/*
+    青持ちと青玉の
+    接触判定
+*/
+checkPhase4BlueOrbCollection();
+
+
+phase4DragonAnimationId =
+    requestAnimationFrame(
+        updatePhase4DragonMovement
+    );
+}
+
+
+/*
+    指定角度へ龍を配置
+*/
+function updatePhase4DragonPosition(
+    direction,
+    angleDegrees
+) {
+
+    const dragon =
+        field.querySelector(
+            `.phase4-dragon-head[data-direction="${direction}"]`
+        );
+
+    if (!dragon) {
+        return;
+    }
+
+
+    const route =
+        phase4DragonSettings.route;
+
+
+    const angleRadians =
+        angleDegrees *
+        Math.PI /
+        180;
+
+
+    const x =
+        route.centerX +
+        Math.cos(
+            angleRadians
+        ) *
+        route.radius;
+
+    const y =
+        route.centerY +
+        Math.sin(
+            angleRadians
+        ) *
+        route.radius;
+
+
+    dragon.style.left =
+        `${x}px`;
+
+    dragon.style.top =
+        `${y}px`;
+}
+/*
+    =========================
+    P4 白龍
+    赤デバフ接触判定
+    =========================
+*/
+function checkPhase4DragonRedContact() {
+
+    const dragons =
+        field.querySelectorAll(
+            ".phase4-dragon-head"
+        );
+
+    dragons.forEach(dragon => {
+
+        /*
+            すでに2人処理済みなら
+            何もしない
+        */
+        let redContactCount =
+            Number(
+                dragon.dataset
+                    .redContactCount
+            );
+
+        if (
+            redContactCount >= 2
+        ) {
+            return;
+        }
+
+
+        const dragonX =
+            parseFloat(
+                dragon.style.left
+            );
+
+        const dragonY =
+            parseFloat(
+                dragon.style.top
+            );
+
+
+        party.forEach(member => {
+
+            /*
+                この龍が処理中に
+                2人へ到達した場合
+                それ以上処理しない
+            */
+            if (
+                redContactCount >= 2
+            ) {
+                return;
+            }
+
+
+            const redDebuff =
+                member.debuffs.find(
+                    debuff =>
+                        debuff.type ===
+                        "red" &&
+                        debuff.time > 0
+                );
+
+            if (!redDebuff) {
+                return;
+            }
+
+
+            const actor =
+                actorStates[
+                    member.role
+                ];
+
+            if (!actor) {
+                return;
+            }
+
+
+            const dx =
+                actor.x -
+                dragonX;
+
+            const dy =
+                actor.y -
+                dragonY;
+
+            const distance =
+                Math.sqrt(
+                    dx * dx +
+                    dy * dy
+                );
+
+
+            const contactRadius = 30;
+
+
+            if (
+                distance <=
+                contactRadius
+            ) {
+
+                /*
+                    接触地点に青玉生成
+                */
+                createPhase4BlueOrb(
+                dragonX,
+                dragonY,
+                member.phase4RedMarker
+                    );
+                /*
+                 接触地点から
+                半径145の大AoE
+                */
+                triggerPhase4DragonExplosion(
+                    dragonX,
+                    dragonY
+            );
+
+
+                /*
+                    赤デバフ解除
+                */
+                removePhase4RedDebuff(
+                    member
+                );
+
+
+                /*
+                    この龍の処理人数を
+                    1増やす
+                */
+                redContactCount++;
+
+                dragon.dataset
+                    .redContactCount =
+                    String(
+                        redContactCount
+                    );
+
+
+                console.log(
+                    "白龍接触:",
+                    dragon.dataset.direction,
+                    "→",
+                    member.role,
+                    `(${redContactCount}/2)`
+                );
+
+
+                /*
+                    2人目を処理したら
+                    白龍消滅
+                */
+                if (
+                    redContactCount >= 2
+                ) {
+                    dragon.remove();
+                }
+            }
+        });
+    });
+}
+
+
+/*
+    赤デバフを解除する
+*/
+function removePhase4RedDebuff(
+    member
+) {
+
+    /*
+        赤を消す前に
+        赤17＋ブリザガか判定
+    */
+    const isRed17Blizzard =
+        member.debuffs.some(
+            debuff =>
+                debuff.type === "red" &&
+                debuff.time <= 17
+        ) &&
+        member.debuffs.some(
+            debuff =>
+                debuff.type === "blizzard"
+        );
+
+
+    /*
+        赤を消す前に
+        エアロガ担当か判定
+    */
+    const isAero =
+        member.debuffs.some(
+            debuff =>
+                debuff.type === "aero"
+        );
+
+
+    /*
+        赤デバフ解除
+    */
+    member.debuffs =
+        member.debuffs.filter(
+            debuff =>
+                debuff.type !== "red"
+        );
+
+
+    /*
+        =========================
+        赤17＋ブリザガ
+
+        白龍への接触は完了したが、
+        ここではまだ移動しない。
+
+        ブリザガ残り0.2秒以下になったら
+        エラプション②へ移動する。
+        =========================
+    */
+    if (
+        isRed17Blizzard
+    ) {
+
+        member.phase4Red17DragonTouched =
+            true;
+
+        member.phase4RedMarker =
+            null;
+    }
+
+
+    /*
+        =========================
+        エアロガ
+
+        stop1 / stop2 は
+        ④の左右判定に必要なので
+        移動命令を出してから消す
+        =========================
+    */
+    if (
+        isAero
+    ) {
+
+        movePhase4AeroToFourthPosition();
+
+        member.phase4RedMarker =
+            null;
+    }
+
+
+    /*
+        それ以外
+    */
+    if (
+        !isRed17Blizzard &&
+        !isAero
+    ) {
+        member.phase4RedMarker =
+            null;
+    }
+
+
+    renderParty();
+    renderFieldMembers();
+    renderPhase4PlayerBlueNumber();
+}
+/*
+    =========================
+    P4 青玉
+    =========================
+*/
+
+let phase4BlueOrbId = 0;
+
+
+/*
+    青玉を1個生成する
+*/
+function createPhase4BlueOrb(
+    x,
+    y,
+    sourceRedMarker
+) {
+
+    phase4BlueOrbId++;
+
+    const orb =
+        document.createElement(
+            "div"
+        );
+
+    orb.className =
+        "phase4-blue-orb";
+
+
+    /*
+        青球そのもののID
+    */
+    orb.dataset.orbId =
+        phase4BlueOrbId;
+
+
+    /*
+        この青球を生成した
+        赤デバフ担当を記録
+
+        chain1
+        chain2
+        stop1
+        stop2
+    */
+    orb.dataset.sourceRedMarker =
+        sourceRedMarker;
+
+
+    orb.style.left =
+        `${x}px`;
+
+    orb.style.top =
+        `${y}px`;
+
+    field.appendChild(
+        orb
+    );
+
+
+    console.log(
+        "青球生成:",
+        "ID:",
+        phase4BlueOrbId,
+        "生成者:",
+        sourceRedMarker,
+        "座標:",
+        x,
+        y
+    );
+}
+/*
+    =========================
+    P4 白龍
+    赤接触時の大AoE
+    =========================
+*/
+
+function triggerPhase4DragonExplosion(
+    x,
+    y
+) {
+
+    const explosion =
+        document.createElement(
+            "div"
+        );
+
+    explosion.className =
+        "phase4-dragon-explosion";
+
+    explosion.style.left =
+        `${x}px`;
+
+    explosion.style.top =
+        `${y}px`;
+
+    field.appendChild(
+        explosion
+    );
+
+
+    /*
+        被弾判定
+    */
+    checkPhase4DragonExplosionHit(
+        x,
+        y
+    );
+
+
+    /*
+        AoE表示を消す
+    */
+    setTimeout(
+        function() {
+            explosion.remove();
+        },
+        1200
+    );
+}
+
+
+/*
+    白龍AoEの被弾判定
+*/
+function checkPhase4DragonExplosionHit(
+    explosionX,
+    explosionY
+) {
+
+    const explosionRadius =
+        145;
+
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const dx =
+            actor.x -
+            explosionX;
+
+        const dy =
+            actor.y -
+            explosionY;
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        if (
+            distance <=
+            explosionRadius
+        ) {
+
+            failPhase4(
+                `白龍AoE被弾：${member.role}`
+            );
+        }
+    });
+}
+/*
+    =========================
+    P4 青玉
+    回収判定
+    =========================
+*/
+
+function checkPhase4BlueOrbCollection() {
+
+    const orbs =
+        field.querySelectorAll(
+            ".phase4-blue-orb"
+        );
+
+
+    orbs.forEach(orb => {
+
+        /*
+            すでに回収された玉なら
+            処理しない
+        */
+        if (!orb.isConnected) {
+            return;
+        }
+
+
+        const orbX =
+            parseFloat(
+                orb.style.left
+            );
+
+        const orbY =
+            parseFloat(
+                orb.style.top
+            );
+
+
+        party.forEach(member => {
+
+            /*
+                先に誰かが回収した場合
+                それ以上この玉を処理しない
+            */
+            if (!orb.isConnected) {
+                return;
+            }
+
+
+            /*
+                青デバフを持っている人だけ
+                回収可能
+            */
+            const blueDebuff =
+                member.debuffs.find(
+                    debuff =>
+                        debuff.type ===
+                        "blue" &&
+                        debuff.time > 0
+                );
+
+            if (!blueDebuff) {
+                return;
+            }
+
+
+            /*
+                =========================
+                担当青球チェック
+                =========================
+
+                青1 → chain2
+                青2 → stop2
+                青3 → stop1
+                青4 → chain1
+
+                自分の担当ではない青球は
+                触れても回収しない
+            */
+            const assignedOrb =
+                getPhase4AssignedBlueOrb(
+                    member
+                );
+
+            if (
+                !assignedOrb ||
+                assignedOrb !== orb
+            ) {
+                return;
+            }
+
+
+            const actor =
+                actorStates[
+                    member.role
+                ];
+
+            if (!actor) {
+                return;
+            }
+
+
+            const dx =
+                actor.x -
+                orbX;
+
+            const dy =
+                actor.y -
+                orbY;
+
+            const distance =
+                Math.sqrt(
+                    dx * dx +
+                    dy * dy
+                );
+
+
+            /*
+                青玉の回収距離
+            */
+            const collectionRadius =
+                25;
+
+
+            if (
+                distance <=
+                collectionRadius
+            ) {
+
+                collectPhase4BlueOrb(
+                    member,
+                    orb
+                );
+            }
+        });
+    });
+}
+
+
+/*
+    青玉を回収する
+*/
+function collectPhase4BlueOrb(
+    member,
+    orb
+) {
+
+    /*
+        先に玉を消す
+
+        同じ玉を複数人が
+        同時取得するのを防ぐ
+    */
+    orb.remove();
+
+
+    /*
+        青デバフ解除
+    */
+    member.debuffs =
+        member.debuffs.filter(
+            debuff =>
+                debuff.type !==
+                "blue"
+        );
+
+
+    /*
+        青1～4マーカー解除
+    */
+    member.phase4BlueNumber =
+        null;
+
+
+    console.log(
+        "青玉回収:",
+        member.role
+    );
+
+
+    /*
+        表示更新
+    */
+    renderParty();
+
+    renderFieldMembers();
+
+    renderPhase4PlayerBlueNumber();
+}
+/*
+    =========================
+    P4 横エクサ
+    =========================
+*/
+
+const phase4ExaSettings = {
+
+    /*
+        一番西側のエクサ中心
+    */
+    startX: 60,
+
+    /*
+        フィールド縦中央
+    */
+    centerY: 240,
+
+    /*
+        次のエクサ中心まで120px
+        → AoE幅120なので重ならない・隙間なし
+    */
+    stepX: 120,
+
+    /*
+        エクササイズ
+    */
+    aoeWidth: 120,
+    aoeHeight: 480,
+
+    /*
+        タイミング
+    */
+    firstExplosionDelay: 3000,
+    nextExplosionDelay: 2000
+};
+
+
+/*
+    横エクサ開始
+*/
+function startPhase4HorizontalExa() {
+
+    /*
+        古いエクサを削除
+    */
+    field
+        .querySelectorAll(
+            ".phase4-exa-cell"
+        )
+        .forEach(
+            cell => cell.remove()
+        );
+
+
+    /*
+        true
+        西 → 東
+
+        false
+        東 → 西
+    */
+    const westToEast =
+        Math.random() < 0.5;
+
+
+    /*
+        NPC移動でも使うため保存
+    */
+    phase4HorizontalWestToEast =
+        westToEast;
+
+
+    const columnOrder =
+        westToEast
+            ? [0, 1, 2, 3]
+            : [3, 2, 1, 0];
+
+
+    console.log(
+        "横エクサ:",
+        westToEast
+            ? "西→東"
+            : "東→西"
+    );
+
+
+    /*
+        最初の列の予兆
+    */
+    showPhase4HorizontalExaColumn(
+        columnOrder[0]
+    );
+
+
+    /*
+        1発目
+    */
+    setTimeout(
+        function() {
+
+            explodePhase4HorizontalExaColumn(
+                columnOrder[0]
+            );
+
+            showPhase4HorizontalExaColumn(
+                columnOrder[1]
+            );
+
+        },
+        phase4ExaSettings
+            .firstExplosionDelay
+    );
+
+
+    /*
+        2発目
+    */
+    setTimeout(
+        function() {
+
+            explodePhase4HorizontalExaColumn(
+            columnOrder[1]
+            );
+
+            showPhase4HorizontalExaColumn(
+            columnOrder[2]
+            );
+
+
+            /*
+            青持ちは
+            2発目の爆発跡へ入る
+            */
+            movePhase4BlueMembersIntoHorizontalExaWake(
+            columnOrder[1],
+            columnOrder[2]
+            );
+
+
+            /*
+                2発目が終わった瞬間
+
+                6人
+                236,74
+
+                エアロ
+                236,406
+
+                ↓
+
+                共通
+                228,252
+            */
+            movePhase4AfterHorizontalSecondExplosion();
+
+        },
+        phase4ExaSettings
+            .firstExplosionDelay +
+        phase4ExaSettings
+            .nextExplosionDelay
+    );
+
+
+/*
+    3発目
+*/
+setTimeout(
+    function() {
+
+        explodePhase4HorizontalExaColumn(
+            columnOrder[2]
+        );
+
+        showPhase4HorizontalExaColumn(
+            columnOrder[3]
+        );
+
+        /*
+            3発目を待っていた青持ちだけ
+            爆発跡へ入る。
+
+            その後、
+            4発目も必要か判断。
+        */
+        movePhase4BlueMembersIntoHorizontalExaWake(
+            columnOrder[2],
+            columnOrder[3]
+        );
+
+    },
+    phase4ExaSettings
+        .firstExplosionDelay +
+    phase4ExaSettings
+        .nextExplosionDelay * 2
+);
+
+
+/*
+    4発目
+*/
+setTimeout(
+    function() {
+
+        explodePhase4HorizontalExaColumn(
+            columnOrder[3]
+        );
+            /*
+            4発目を待っていた青持ちを
+            爆発跡へ移動させる。
+
+            これが横エクサ最後なので
+            nextColumn は null。
+            到着後は担当青球へ向かう。
+        */
+            movePhase4BlueMembersIntoHorizontalExaWake(
+               columnOrder[3],
+              null
+            );
+
+
+        /*
+            横エクサ4発目終了後、
+            横エクサの残った予兆を
+            念のため完全削除
+        */
+        setTimeout(
+            function() {
+
+                field
+                    .querySelectorAll(
+                        ".phase4-exa-cell.phase4-exa-telegraph"
+                    )
+                    .forEach(
+                        cell => {
+
+                            /*
+                                横エクサのセルだけ対象
+                            */
+                            if (
+                                cell.dataset.column !==
+                                undefined
+                            ) {
+                                cell.remove();
+                            }
+                        }
+                    );
+
+            },
+            750
+        );
+
+    },
+    phase4ExaSettings
+        .firstExplosionDelay +
+    phase4ExaSettings
+        .nextExplosionDelay * 3
+);
+}
+
+/*
+    指定した1列の予兆を表示
+*/
+function showPhase4HorizontalExaColumn(
+    column
+) {
+
+    const cell =
+        createPhase4ExaCell(
+            column
+        );
+
+    cell.classList.add(
+        "phase4-exa-telegraph"
+    );
+}
+
+
+/*
+    指定した1列を爆発
+*/
+function explodePhase4HorizontalExaColumn(
+    column
+) {
+
+    const cells =
+        field.querySelectorAll(
+            `.phase4-exa-cell[data-column="${column}"]`
+        );
+
+
+    cells.forEach(cell => {
+
+        /*
+            予兆 → 実AoE
+        */
+        cell.classList.remove(
+            "phase4-exa-telegraph"
+        );
+
+        cell.classList.add(
+            "phase4-exa-explosion"
+        );
+
+
+        /*
+            爆発した瞬間だけ
+            被弾判定
+        */
+        checkPhase4HorizontalExaHit(
+            column
+        );
+
+
+        /*
+            爆発表示を消す
+        */
+        setTimeout(
+            function() {
+                cell.remove();
+            },
+            700
+        );
+    });
+}
+
+
+/*
+    エクサ1マスを作る
+*/
+function createPhase4ExaCell(
+    row,
+    column
+) {
+
+    const cell =
+        document.createElement(
+            "div"
+        );
+
+
+    cell.className =
+        "phase4-exa-cell";
+
+
+    cell.dataset.row =
+        row;
+
+    cell.dataset.column =
+        column;
+
+
+    cell.style.left =
+        `${
+            phase4ExaSettings
+                .arenaLeft +
+            column *
+            phase4ExaSettings
+                .cellSize
+        }px`;
+
+
+    cell.style.top =
+        `${
+            phase4ExaSettings
+                .arenaTop +
+            row *
+            phase4ExaSettings
+                .cellSize
+        }px`;
+
+
+            cell.style.width =
+            `${phase4ExaSettings.aoeWidth}px`;
+
+            cell.style.height =
+             `${phase4ExaSettings.aoeHeight}px`;
+
+
+    field.appendChild(
+        cell
+    );
+
+
+    return cell;
+}
+/*
+    =========================
+    P4 横エクサ
+    AoE生成
+    =========================
+*/
+
+function createPhase4ExaCell(
+    column
+) {
+
+    const cell =
+        document.createElement(
+            "div"
+        );
+
+
+    cell.className =
+        "phase4-exa-cell";
+
+
+    cell.dataset.column =
+        column;
+
+
+    /*
+        西端を基準にして
+        列番号 × 間隔で配置
+
+        0 → 一番西
+        1 → その右
+        2 → さらに右
+        3 → 一番東
+    */
+    const x =
+        phase4ExaSettings.startX +
+        column *
+        phase4ExaSettings.stepX;
+
+
+    const y =
+        phase4ExaSettings.centerY;
+
+
+    cell.style.left =
+        `${x}px`;
+
+    cell.style.top =
+        `${y}px`;
+
+
+    cell.style.width =
+        `${phase4ExaSettings.aoeWidth}px`;
+
+    cell.style.height =
+        `${phase4ExaSettings.aoeHeight}px`;
+
+
+    /*
+        left / topを
+        AoEの中心座標として扱う
+    */
+    cell.style.transform =
+        "translate(-50%, -50%)";
+
+
+    field.appendChild(
+        cell
+    );
+
+
+    return cell;
+}
+/*
+    =========================
+    P4 横エクサ
+    被弾判定
+    =========================
+*/
+
+function checkPhase4HorizontalExaHit(
+    column
+) {
+
+    /*
+        各エクサの中心X
+
+        60 / 180 / 300 / 420
+    */
+    const centerX =
+        phase4ExaSettings.startX +
+        column *
+        phase4ExaSettings.stepX;
+
+
+    const centerY =
+        phase4ExaSettings.centerY;
+
+
+    /*
+        半分のサイズ
+
+        現在の設定なら
+        横 ±60
+        縦 ±240
+    */
+    const halfWidth =
+        phase4ExaSettings.aoeWidth /
+        2;
+
+    const halfHeight =
+        phase4ExaSettings.aoeHeight /
+        2;
+
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        /*
+            長方形AoEの中に
+            キャラ中心が入っているか
+        */
+        const insideX =
+            actor.x >=
+                centerX - halfWidth &&
+            actor.x <=
+                centerX + halfWidth;
+
+        const insideY =
+            actor.y >=
+                centerY - halfHeight &&
+            actor.y <=
+                centerY + halfHeight;
+
+
+        if (
+            insideX &&
+            insideY
+        ) {
+
+            failPhase4(
+                `横エクサ被弾：${member.role}`
+            );
+        }
+    });
+}
+/*
+    =========================
+    P4 縦エクサ
+    横エクサを90度回転
+    =========================
+*/
+
+function startPhase4VerticalExa() {
+
+    /*
+        古い縦エクサを削除
+    */
+    field
+        .querySelectorAll(
+            ".phase4-vertical-exa-cell"
+        )
+        .forEach(
+            cell => cell.remove()
+        );
+
+
+    /*
+        方向をランダム決定
+
+        true
+            北 → 南
+
+        false
+            南 → 北
+    */
+    const northToSouth =
+        Math.random() < 0.5;
+
+
+    /*
+        NPC側からも
+        縦エクサの方向を
+        確認できるように保存
+    */
+    phase4VerticalNorthToSouth =
+        northToSouth;
+
+
+    const rowOrder =
+        northToSouth
+            ? [0, 1, 2, 3]
+            : [3, 2, 1, 0];
+
+
+    console.log(
+        "縦エクサ:",
+        northToSouth
+            ? "北→南"
+            : "南→北"
+    );
+
+
+    /*
+        最初の危険行
+    */
+    phase4VerticalCurrentDangerRow =
+        rowOrder[0];
+    /*
+    青持ちNPCが
+    最初の縦エクサを越える必要があるか判定
+    */
+    party.forEach(member => {
+
+    decidePhase4BlueVerticalMovement(
+        member,
+        rowOrder[0]
+    );
+
+    });
+
+
+    /*
+        最初の予兆
+    */
+    showPhase4VerticalExaRow(
+        rowOrder[0]
+    );
+
+
+    /*
+        1発目
+    */
+    setTimeout(
+        function() {
+
+            explodePhase4VerticalExaRow(
+            rowOrder[0]
+        );
+
+        /*
+            1発目を待っていた青持ちNPCを
+            爆発跡へ入れる
+        */
+        movePhase4BlueMembersIntoVerticalExaWake(
+            rowOrder[0]
+        );
+
+        /*
+            次に危険なのは2発目
+        */
+        phase4VerticalCurrentDangerRow =
+            rowOrder[1];
+
+
+            /*
+                青持ちNPCについて
+                2発目の縦エクサを
+                越える必要があるか再判定
+            */
+            party.forEach(member => {
+
+                decidePhase4BlueVerticalMovement(
+                    member,
+                    rowOrder[1]
+                );
+
+});
+
+
+showPhase4VerticalExaRow(
+    rowOrder[1]
+);
+
+        },
+        phase4ExaSettings
+            .firstExplosionDelay
+    );
+
+
+    /*
+        2発目
+    */
+    setTimeout(
+        function() {
+
+            explodePhase4VerticalExaRow(
+                rowOrder[1]
+            );
+
+
+            /*
+                次に危険なのは3発目
+            */
+            phase4VerticalCurrentDangerRow =
+                rowOrder[2];
+
+
+            showPhase4VerticalExaRow(
+                rowOrder[2]
+            );
+
+        },
+        phase4ExaSettings
+            .firstExplosionDelay +
+        phase4ExaSettings
+            .nextExplosionDelay
+    );
+
+
+    /*
+        3発目
+    */
+    setTimeout(
+        function() {
+
+            explodePhase4VerticalExaRow(
+                rowOrder[2]
+            );
+
+
+            /*
+                次に危険なのは4発目
+            */
+            phase4VerticalCurrentDangerRow =
+                rowOrder[3];
+
+
+            showPhase4VerticalExaRow(
+                rowOrder[3]
+            );
+
+        },
+        phase4ExaSettings
+            .firstExplosionDelay +
+        phase4ExaSettings
+            .nextExplosionDelay * 2
+    );
+
+
+    /*
+        4発目
+    */
+    setTimeout(
+        function() {
+
+            explodePhase4VerticalExaRow(
+                rowOrder[3]
+            );
+
+
+            /*
+                縦エクサ終了
+            */
+            phase4VerticalCurrentDangerRow =
+                null;
+
+        },
+        phase4ExaSettings
+            .firstExplosionDelay +
+        phase4ExaSettings
+            .nextExplosionDelay * 3
+    );
+}
+
+
+/*
+    縦エクサの予兆
+*/
+function showPhase4VerticalExaRow(
+    row
+) {
+
+    const cell =
+        createPhase4VerticalExaCell(
+            row
+        );
+
+    cell.classList.add(
+        "phase4-exa-telegraph"
+    );
+}
+
+
+/*
+    縦エクサの爆発
+*/
+function explodePhase4VerticalExaRow(
+    row
+) {
+
+    const cell =
+        field.querySelector(
+            `.phase4-vertical-exa-cell[data-row="${row}"]`
+        );
+
+    if (!cell) {
+        return;
+    }
+
+
+    cell.classList.remove(
+        "phase4-exa-telegraph"
+    );
+
+    cell.classList.add(
+        "phase4-exa-explosion"
+    );
+
+
+    /*
+        爆発した瞬間だけ判定
+    */
+    checkPhase4VerticalExaHit(
+        row
+    );
+
+
+    setTimeout(
+        function() {
+            cell.remove();
+        },
+        700
+    );
+}
+
+
+/*
+    縦エクサ生成
+
+    横エクサの
+    X / Y
+    Width / Height
+    を入れ替えている
+*/
+function createPhase4VerticalExaCell(
+    row
+) {
+
+    const cell =
+        document.createElement(
+            "div"
+        );
+
+
+    cell.className =
+        "phase4-exa-cell phase4-vertical-exa-cell";
+
+    cell.dataset.row =
+        row;
+
+
+    /*
+        横エクサでは
+        X = 60 / 180 / 300 / 420
+
+        ↓ 90度回転
+
+        縦エクサでは
+        Y = 60 / 180 / 300 / 420
+    */
+    const x =
+        phase4ExaSettings.centerY;
+
+    const y =
+        phase4ExaSettings.startX +
+        row *
+        phase4ExaSettings.stepX;
+
+
+    cell.style.left =
+        `${x}px`;
+
+    cell.style.top =
+        `${y}px`;
+
+
+    /*
+        120×480
+        ↓
+        480×120
+    */
+    cell.style.width =
+        `${phase4ExaSettings.aoeHeight}px`;
+
+    cell.style.height =
+        `${phase4ExaSettings.aoeWidth}px`;
+
+
+    cell.style.transform =
+        "translate(-50%, -50%)";
+
+
+    field.appendChild(
+        cell
+    );
+
+
+    return cell;
+}
+
+
+/*
+    縦エクサ被弾判定
+*/
+function checkPhase4VerticalExaHit(
+    row
+) {
+
+    const centerX =
+        phase4ExaSettings.centerY;
+
+    const centerY =
+        phase4ExaSettings.startX +
+        row *
+        phase4ExaSettings.stepX;
+
+
+    /*
+        横エクサのサイズを
+        90度回転
+    */
+    const halfWidth =
+        phase4ExaSettings.aoeHeight /
+        2;
+
+    const halfHeight =
+        phase4ExaSettings.aoeWidth /
+        2;
+
+
+    party.forEach(member => {
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const insideX =
+            actor.x >=
+                centerX - halfWidth &&
+            actor.x <=
+                centerX + halfWidth;
+
+        const insideY =
+            actor.y >=
+                centerY - halfHeight &&
+            actor.y <=
+                centerY + halfHeight;
+
+
+        if (
+            insideX &&
+            insideY
+        ) {
+
+            failPhase4(
+                `縦エクサ被弾：${member.role}`
+            );
+        }
+    });
+}
+/*
+    =========================
+    P4 赤17 初期移動
+    =========================
+*/
+
+function movePhase4Red17PlayersToDragonRoute() {
+
+    party.forEach(member => {
+
+        const hasRed17 =
+            member.debuffs.some(
+                debuff =>
+                    debuff.type === "red" &&
+                    debuff.time <= 17
+            );
+
+        const hasBlizzard =
+            member.debuffs.some(
+                debuff =>
+                    debuff.type === "blizzard"
+            );
+
+        if (
+            !hasRed17 ||
+            !hasBlizzard
+        ) {
+            return;
+        }
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+        /*
+            鎖1 = D側
+            鎖2 = B側
+        */
+        if (
+            member.phase4RedMarker ===
+            "chain1"
+        ) {
+            actor.targetX = 65;
+            actor.targetY = 240;
+        }
+
+        if (
+            member.phase4RedMarker ===
+            "chain2"
+        ) {
+            actor.targetX = 415;
+            actor.targetY = 240;
+        }
+    });
+}
+/*
+    =========================
+    P4 赤17
+    赤解除後 → エラプションへ合流
+    =========================
+*/
+
+function movePhase4Red17ToEruption(
+    member
+) {
+
+    /*
+        YOUは自動移動させない
+    */
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    /*
+        現在の青線パターン
+    */
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return;
+    }
+
+    /*
+        青線が西側なら西②
+        青線が東側なら東②
+    */
+    const blueIsWest =
+        pattern.blueStart ===
+            "northWest" ||
+        pattern.blueEnd ===
+            "northWest";
+
+    const target =
+        blueIsWest
+            ? phase4EruptionRoute
+                .westSecond
+            : phase4EruptionRoute
+                .eastSecond;
+
+    /*
+        エラプ本人を追跡するのではなく
+        頭割り位置②へ直接集合
+    */
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+/*
+    =========================
+    P4 エラプション
+    ① 最初の待機位置へ移動
+    =========================
+*/
+
+const phase4EruptionRoute = {
+
+    /*
+        ① 1回目時計回避
+    */
+    westFirst: {
+        x: 102,
+        y: 54
+    },
+
+    eastFirst: {
+        x: 378,
+        y: 54
+    },
+
+    /*
+        ② ホーリー頭割り待機
+    */
+    westSecond: {
+        x: 128,
+        y: 43
+    },
+
+    eastSecond: {
+        x: 352,
+        y: 43
+    },
+
+    /*
+        ③ 3回目時計回避
+        Aマーカー真上
+    */
+    westThird: {
+        x: 233,
+        y: 12
+    },
+
+    eastThird: {
+        x: 247,
+        y: 12
+    }
+};
+
+
+function movePhase4EruptionToFirstPosition() {
+
+    const eruptionMember =
+        party.find(
+            member =>
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type ===
+                        "eruption"
+                )
+        );
+
+    if (!eruptionMember) {
+        return;
+    }
+
+    /*
+        YOUは自動移動させない
+    */
+    if (
+        eruptionMember.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            eruptionMember.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    /*
+        現在選ばれている
+        青線パターンを取得
+    */
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return;
+    }
+
+    /*
+        青線につながる北側時計が
+        北西なら西ルート
+        北東なら東ルート
+    */
+    const blueIsWest =
+        pattern.blueStart ===
+            "northWest" ||
+        pattern.blueEnd ===
+            "northWest";
+
+    const target =
+        blueIsWest
+            ? phase4EruptionRoute
+                .westFirst
+            : phase4EruptionRoute
+                .eastFirst;
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+/*
+    =========================
+    P4 エラプション
+    ② ホーリー頭割り待機位置へ
+    =========================
+*/
+
+function movePhase4EruptionToSecondPosition() {
+
+    const eruptionMember =
+        party.find(
+            member =>
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type ===
+                        "eruption"
+                )
+        );
+
+    if (!eruptionMember) {
+        return;
+    }
+
+    /*
+        YOUは自動移動させない
+    */
+    if (
+        eruptionMember.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            eruptionMember.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    /*
+        現在の青線パターン
+    */
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return;
+    }
+
+    /*
+        北側の青時計が
+        西側か東側か判定
+    */
+    const blueIsWest =
+        pattern.blueStart ===
+            "northWest" ||
+        pattern.blueEnd ===
+            "northWest";
+
+    const target =
+        blueIsWest
+            ? phase4EruptionRoute
+                .westSecond
+            : phase4EruptionRoute
+                .eastSecond;
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+/*
+    =========================
+    座標確認モード
+    =========================
+*/
+
+let coordinateDebugEnabled = false;
+
+
+/*
+    座標確認モード ON / OFF
+*/
+function toggleCoordinateDebug() {
+
+    coordinateDebugEnabled =
+        !coordinateDebugEnabled;
+
+    const overlay =
+        document.getElementById(
+            "coordinate-debug-overlay"
+        );
+
+    const display =
+        document.getElementById(
+            "coordinate-debug-display"
+        );
+
+    const button =
+        document.getElementById(
+            "coordinate-debug-button"
+        );
+
+    if (overlay) {
+        overlay.style.display =
+            coordinateDebugEnabled
+                ? "block"
+                : "none";
+    }
+
+    if (display) {
+        display.style.display =
+            coordinateDebugEnabled
+                ? "block"
+                : "none";
+    }
+
+    if (button) {
+        button.textContent =
+            coordinateDebugEnabled
+                ? "座標表示 OFF"
+                : "座標表示 ON";
+    }
+}
+
+
+/*
+    座標確認UIを作成
+*/
+function createCoordinateDebugMode() {
+
+    /*
+        二重作成防止
+    */
+    if (
+        document.getElementById(
+            "coordinate-debug-overlay"
+        )
+    ) {
+        return;
+    }
+
+    /*
+        グリッド
+    */
+    const overlay =
+        document.createElement(
+            "div"
+        );
+
+    overlay.id =
+        "coordinate-debug-overlay";
+
+    overlay.innerHTML =
+        createCoordinateGridHtml();
+
+    field.appendChild(
+        overlay
+    );
+
+
+    /*
+        現在座標表示
+    */
+    const display =
+        document.createElement(
+            "div"
+        );
+
+    display.id =
+        "coordinate-debug-display";
+
+    display.textContent =
+        "X: ---  Y: ---";
+
+    field.appendChild(
+        display
+    );
+
+
+    /*
+        ON / OFFボタン
+    */
+    const button =
+        document.createElement(
+            "button"
+        );
+
+    button.id =
+        "coordinate-debug-button";
+
+    button.type =
+        "button";
+
+    button.textContent =
+        "座標表示 ON";
+
+    button.addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+            toggleCoordinateDebug();
+        }
+    );
+
+    /*
+        フィールドの親要素へ追加
+    */
+    field.parentElement.appendChild(
+        button
+    );
+
+
+    /*
+        マウス座標取得
+    */
+    field.addEventListener(
+        "mousemove",
+        updateCoordinateDebugMouse
+    );
+
+
+    /*
+        クリック地点固定
+    */
+    field.addEventListener(
+        "click",
+        pinCoordinateDebugPoint
+    );
+
+
+    /*
+        初期状態はOFF
+    */
+    overlay.style.display =
+        "none";
+
+    display.style.display =
+        "none";
+}
+
+
+/*
+    40px刻みのグリッドを作成
+*/
+function createCoordinateGridHtml() {
+
+    let html = "";
+
+    for (
+        let value = 0;
+        value <= 480;
+        value += 40
+    ) {
+
+        /*
+            縦線
+        */
+        html += `
+            <div
+                class="coordinate-grid-line coordinate-grid-vertical"
+                style="left:${value}px;"
+            ></div>
+        `;
+
+        /*
+            横線
+        */
+        html += `
+            <div
+                class="coordinate-grid-line coordinate-grid-horizontal"
+                style="top:${value}px;"
+            ></div>
+        `;
+
+        /*
+            X座標数字
+        */
+        if (value < 480) {
+            html += `
+                <div
+                    class="coordinate-grid-label coordinate-grid-x-label"
+                    style="left:${value + 3}px;"
+                >
+                    ${value}
+                </div>
+            `;
+        }
+
+        /*
+            Y座標数字
+        */
+        if (value < 480) {
+            html += `
+                <div
+                    class="coordinate-grid-label coordinate-grid-y-label"
+                    style="top:${value + 3}px;"
+                >
+                    ${value}
+                </div>
+            `;
+        }
+    }
+
+    return html;
+}
+
+
+/*
+    マウス位置を
+    480×480座標へ変換
+*/
+function getFieldMouseCoordinate(
+    event
+) {
+
+    const rect =
+        field.getBoundingClientRect();
+
+    const x =
+        (
+            event.clientX -
+            rect.left
+        ) *
+        480 /
+        rect.width;
+
+    const y =
+        (
+            event.clientY -
+            rect.top
+        ) *
+        480 /
+        rect.height;
+
+    return {
+        x: Math.round(x),
+        y: Math.round(y)
+    };
+}
+
+
+/*
+    マウス座標をリアルタイム表示
+*/
+function updateCoordinateDebugMouse(
+    event
+) {
+
+    if (
+        !coordinateDebugEnabled
+    ) {
+        return;
+    }
+
+    const position =
+        getFieldMouseCoordinate(
+            event
+        );
+
+    const display =
+        document.getElementById(
+            "coordinate-debug-display"
+        );
+
+    if (!display) {
+        return;
+    }
+
+    display.textContent =
+        `X: ${position.x}  Y: ${position.y}`;
+}
+
+
+/*
+    クリック地点を固定
+*/
+function pinCoordinateDebugPoint(
+    event
+) {
+
+    if (
+        !coordinateDebugEnabled
+    ) {
+        return;
+    }
+
+    /*
+        既存マーカー削除
+    */
+    const oldMarker =
+        document.getElementById(
+            "coordinate-debug-pin"
+        );
+
+    if (oldMarker) {
+        oldMarker.remove();
+    }
+
+    const position =
+        getFieldMouseCoordinate(
+            event
+        );
+
+    const marker =
+        document.createElement(
+            "div"
+        );
+
+    marker.id =
+        "coordinate-debug-pin";
+
+    marker.style.left =
+        `${position.x}px`;
+
+    marker.style.top =
+        `${position.y}px`;
+
+    marker.innerHTML = `
+        <div class="coordinate-debug-dot">
+        </div>
+
+        <div class="coordinate-debug-pin-label">
+            (${position.x}, ${position.y})
+        </div>
+    `;
+
+    field.appendChild(
+        marker
+    );
+}
+
+
+/*
+    ページ読み込み後に作成
+*/
+window.addEventListener(
+    "load",
+    function() {
+        createCoordinateDebugMode();
+    }
+);
+/*
+    =========================
+    P4 エラプション
+    ③ 3回目時計回避位置へ
+    =========================
+*/
+
+function movePhase4EruptionToThirdPosition() {
+
+    const eruptionMember =
+        party.find(
+            member =>
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type ===
+                        "eruption"
+                )
+        );
+
+    if (!eruptionMember) {
+        return;
+    }
+
+    /*
+        YOUは自動移動させない
+    */
+    if (
+        eruptionMember.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            eruptionMember.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return;
+    }
+
+    const blueIsWest =
+        pattern.blueStart ===
+            "northWest" ||
+        pattern.blueEnd ===
+            "northWest";
+
+    const target =
+        blueIsWest
+            ? phase4EruptionRoute
+                .westThird
+            : phase4EruptionRoute
+                .eastThird;
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+/*
+    =========================
+    P4 ホーリー担当
+    ② 頭割り位置へ移動
+    =========================
+*/
+
+/*
+    =========================
+    P4 エアロガ担当ルート
+    =========================
+*/
+
+
+/*
+    現在の青線が
+    西側かどうか取得
+*/
+function isPhase4BlueWest() {
+
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return false;
+    }
+
+    return (
+        pattern.blueStart === "northWest" ||
+        pattern.blueEnd === "northWest"
+    );
+}
+
+
+/*
+    エアロガ担当を取得
+*/
+function getPhase4AeroMember() {
+
+    return party.find(
+        member =>
+            member.debuffs.some(
+                debuff =>
+                    debuff.type === "aero"
+            )
+    );
+}
+
+
+/*
+    =========================
+    ① 初期位置
+    =========================
+*/
+function movePhase4AeroToFirstPosition() {
+
+    const member =
+        getPhase4AeroMember();
+
+    if (!member) {
+        return;
+    }
+
+    /*
+        YOUは自動移動しない
+    */
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const target =
+        isPhase4BlueWest()
+            ? phase4AeroRoute
+                .westFirst
+            : phase4AeroRoute
+                .eastFirst;
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+
+
+/*
+    =========================
+    ② 黄色時計終了後
+    =========================
+*/
+function movePhase4AeroToSecondPosition() {
+
+    const member =
+        getPhase4AeroMember();
+
+    if (!member) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const target =
+        isPhase4BlueWest()
+            ? phase4AeroRoute
+                .westSecond
+            : phase4AeroRoute
+                .eastSecond;
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+
+
+/*
+    =========================
+    ③ エアロガ発動直後
+    =========================
+*/
+function movePhase4AeroToThirdPosition(
+    member
+) {
+
+    if (!member) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const target =
+        isPhase4BlueWest()
+            ? phase4AeroRoute
+                .westThird
+            : phase4AeroRoute
+                .eastThird;
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+
+
+/*
+    =========================
+    ④ 白龍接触後
+    =========================
+*/
+/*
+    =========================
+    P4 エアロガ担当ルート
+    =========================
+*/
+
+const phase4AeroRoute = {
+
+    /*
+        禁止1：西側
+    */
+    westFirst: {
+        x: 104,
+        y: 425
+    },
+
+    westSecond: {
+        x: 127,
+        y: 441
+    },
+
+    westThird: {
+        x: 124,
+        y: 358
+    },
+
+    westFourth: {
+        x: 231,
+        y: 469
+    },
+
+
+    /*
+        禁止2：東側
+    */
+    eastFirst: {
+        x: 376,
+        y: 425
+    },
+
+    eastSecond: {
+        x: 353,
+        y: 441
+    },
+
+    eastThird: {
+        x: 356,
+        y: 358
+    },
+
+    eastFourth: {
+        x: 249,
+        y: 469
+    }
+};
+
+
+/*
+    エアロガ担当を
+    2人とも取得
+*/
+function getPhase4AeroMembers() {
+
+    return party.filter(
+        member =>
+            member.debuffs.some(
+                debuff =>
+                    debuff.type === "aero"
+            )
+    );
+}
+
+
+/*
+    禁止1 / 禁止2から
+    使用するルートを取得
+*/
+function getPhase4AeroRoute(
+    member
+) {
+
+    if (
+        member.phase4RedMarker ===
+        "stop1"
+    ) {
+        return {
+            first:
+                phase4AeroRoute.westFirst,
+
+            second:
+                phase4AeroRoute.westSecond,
+
+            third:
+                phase4AeroRoute.westThird,
+
+            fourth:
+                phase4AeroRoute.westFourth
+        };
+    }
+
+    if (
+        member.phase4RedMarker ===
+        "stop2"
+    ) {
+        return {
+            first:
+                phase4AeroRoute.eastFirst,
+
+            second:
+                phase4AeroRoute.eastSecond,
+
+            third:
+                phase4AeroRoute.eastThird,
+
+            fourth:
+                phase4AeroRoute.eastFourth
+        };
+    }
+
+    return null;
+}
+
+
+/*
+    =========================
+    ① 初期位置
+    =========================
+*/
+function movePhase4AeroToFirstPosition() {
+
+    const members =
+        getPhase4AeroMembers();
+
+    members.forEach(member => {
+
+        /*
+            YOUは自動移動しない
+        */
+        if (
+            member.role ===
+            controlledRole
+        ) {
+            return;
+        }
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+        const route =
+            getPhase4AeroRoute(
+                member
+            );
+
+        if (!route) {
+            return;
+        }
+
+        actor.targetX =
+            route.first.x;
+
+        actor.targetY =
+            route.first.y;
+    });
+}
+
+
+/*
+    =========================
+    ② 黄色時計終了後
+    =========================
+*/
+function movePhase4AeroToSecondPosition() {
+
+    const members =
+        getPhase4AeroMembers();
+
+    members.forEach(member => {
+
+        if (
+            member.role ===
+            controlledRole
+        ) {
+            return;
+        }
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+        const route =
+            getPhase4AeroRoute(
+                member
+            );
+
+        if (!route) {
+            return;
+        }
+
+        actor.targetX =
+            route.second.x;
+
+        actor.targetY =
+            route.second.y;
+    });
+}
+
+
+/*
+    =========================
+    ③ エアロガ発動直後
+    =========================
+*/
+function movePhase4AeroToThirdPosition(
+    member
+) {
+
+    if (!member) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const route =
+        getPhase4AeroRoute(
+            member
+        );
+
+    if (!route) {
+        return;
+    }
+
+    actor.targetX =
+        route.third.x;
+
+    actor.targetY =
+        route.third.y;
+}
+
+
+/*
+    =========================
+    ④ 白龍接触後
+    =========================
+*/
+function movePhase4AeroToFourthPosition() {
+
+    const members =
+        getPhase4AeroMembers();
+
+    members.forEach(member => {
+
+        /*
+            すでに④へ移動済み
+        */
+        if (
+            member.phase4AeroMovedToFourth
+        ) {
+            return;
+        }
+
+
+        /*
+            赤が残っている =
+            まだ白龍処理前
+        */
+        const hasRed =
+            member.debuffs.some(
+                debuff =>
+                    debuff.type === "red"
+            );
+
+        if (hasRed) {
+            return;
+        }
+
+
+        if (
+            member.role ===
+            controlledRole
+        ) {
+            return;
+        }
+
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        const route =
+            getPhase4AeroRoute(
+                member
+            );
+
+        if (!route) {
+            return;
+        }
+
+
+        member.phase4AeroMovedToFourth =
+            true;
+
+
+        /*
+            まず④へ
+        */
+        actor.targetX =
+            route.fourth.x;
+
+        actor.targetY =
+            route.fourth.y;
+
+
+        /*
+            ④へ実際に着いた後、
+            3回目時計が終わっていれば
+            横エクサ待機位置へ進む
+        */
+        waitPhase4AeroFourthArrival(
+            member
+        );
+    });
+}
+
+/*
+    =========================
+    P4 南側 青3人ルート
+    ブリザガ / ウォタガ / ホーリー
+    =========================
+*/
+
+const phase4SouthBlueRoute = {
+
+    /*
+        ① エアロガ担当と同じ位置
+    */
+    westFirst: {
+        x: 104,
+        y: 425
+    },
+
+    eastFirst: {
+        x: 376,
+        y: 425
+    },
+
+    /*
+        ② エアロガ受け位置
+    */
+    westSecond: {
+    x: 157,
+    y: 396
+    },
+
+    eastSecond: {
+    x: 323,
+    y: 396
+    }
+};
+
+
+/*
+    南側に行く青3人を取得
+*/
+function getPhase4SouthBlueMembers() {
+
+    return party.filter(
+        member => {
+
+            const hasBlue =
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type === "blue"
+                );
+
+            if (!hasBlue) {
+                return false;
+            }
+
+            const hasBlizzard =
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type === "blizzard"
+                );
+
+            const hasWater =
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type === "water"
+                );
+
+            const hasHoly =
+                member.debuffs.some(
+                    debuff =>
+                        debuff.type === "holy"
+                );
+
+            return (
+                hasBlizzard ||
+                hasWater ||
+                hasHoly
+            );
+        }
+    );
+}
+
+
+/*
+    西 / 東どちらへ行くか取得
+
+    stop1側のエアロに青3人が集合する場合は西
+    stop2側なら東
+
+    現在は青線の位置に合わせる
+*/
+/*
+    =========================
+    南青3人
+    エアロガを受ける側
+
+    南側の
+    3回目に爆発する青時計を見る
+    =========================
+*/
+function getPhase4SouthBlueAeroSide() {
+
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return null;
+    }
+
+    /*
+        青線が
+
+        NE ↔ SW
+        → 南側青時計はSW
+        → west
+
+        NW ↔ SE
+        → 南側青時計はSE
+        → east
+    */
+    const blueIsSouthWest =
+        pattern.blueStart === "southWest" ||
+        pattern.blueEnd === "southWest";
+
+    return blueIsSouthWest
+        ? "west"
+        : "east";
+}
+
+
+/*
+    =========================
+    南青3人
+    エアロガ後に
+    エラプションへ集合する側
+
+    北側の青時計を見る
+    =========================
+*/
+function getPhase4SouthBlueEruptionSide() {
+
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return null;
+    }
+
+    const blueIsNorthWest =
+        pattern.blueStart === "northWest" ||
+        pattern.blueEnd === "northWest";
+
+    return blueIsNorthWest
+        ? "west"
+        : "east";
+}
+
+
+/*
+    =========================
+    ① P4開始時
+    =========================
+*/
+function movePhase4SouthBlueToFirstPosition() {
+
+    const members =
+        getPhase4SouthBlueMembers();
+
+const side =
+    getPhase4SouthBlueAeroSide();
+
+    if (!side) return;
+
+    const target =
+        side === "west"
+            ? phase4SouthBlueRoute.westFirst
+            : phase4SouthBlueRoute.eastFirst;
+
+    members.forEach(member => {
+
+        if (member.role === controlledRole) {
+            return;
+        }
+
+        const actor =
+            actorStates[member.role];
+
+        if (!actor) return;
+
+        actor.targetX = target.x;
+        actor.targetY = target.y;
+    });
+}
+
+
+/*
+    =========================
+    ② 黄色時計終了後
+    =========================
+*/
+function movePhase4SouthBlueToSecondPosition() {
+
+    const members =
+        getPhase4SouthBlueMembers();
+
+    const side =
+    getPhase4SouthBlueAeroSide();
+
+    if (!side) return;
+
+    const target =
+        side === "west"
+            ? phase4SouthBlueRoute.westSecond
+            : phase4SouthBlueRoute.eastSecond;
+
+    members.forEach(member => {
+
+        if (member.role === controlledRole) {
+            return;
+        }
+
+        const actor =
+            actorStates[member.role];
+
+        if (!actor) return;
+
+        actor.targetX = target.x;
+        actor.targetY = target.y;
+    });
+}
+/*
+    =========================
+    P4 南側青3人
+    エアロガ後 → エラプ②へ集合
+    =========================
+*/
+
+function movePhase4SouthBlueToEruptionSecond() {
+
+    const members =
+        getPhase4SouthBlueMembers();
+
+    const side =
+    getPhase4SouthBlueEruptionSide();
+
+    if (!side) return;
+
+    const target =
+        side === "west"
+            ? phase4EruptionRoute.westSecond
+            : phase4EruptionRoute.eastSecond;
+
+    console.log(
+        "【南青3人→エラプ②】対象:",
+        members.map(member => ({
+            role: member.role,
+            debuffs: member.debuffs.map(
+                debuff => debuff.type
+            )
+        }))
+    );
+
+    members.forEach(member => {
+
+        if (member.role === controlledRole) {
+            console.log(
+                "YOUなので自動移動なし:",
+                member.role
+            );
+            return;
+        }
+
+        const actor =
+            actorStates[member.role];
+
+        if (!actor) return;
+
+        actor.targetX = target.x;
+        actor.targetY = target.y;
+
+        console.log(
+            "エラプ②へ移動命令:",
+            member.role,
+            "現在位置:",
+            actor.x,
+            actor.y,
+            "目的地:",
+            actor.targetX,
+            actor.targetY
+        );
+    });
+}
+
+/*
+    =========================
+    P4 エクサ回避 NPC移動
+    横エクサ編
+    =========================
+*/
+
+/*
+    true  = 西 → 東
+    false = 東 → 西
+*/
+let phase4HorizontalWestToEast = null;
+
+/*
+    3回目の時計が爆発済みか
+*/
+let phase4ThirdClockFinished = false;
+/*
+    横エクサ2発目が爆発済みか
+*/
+let phase4HorizontalSecondFinished = false;
+
+
+/*
+    X座標を横反転
+*/
+function mirrorPhase4X(x) {
+    return 480 - x;
+}
+
+
+/*
+    エアロガ2人以外
+    = エラプ③まで一緒に動く6人
+*/
+function getPhase4NorthSixMembers() {
+
+    return party.filter(
+        member =>
+            !member.debuffs.some(
+                debuff =>
+                    debuff.type === "aero"
+            )
+    );
+}
+
+
+/*
+    横エクサ方向に合わせて
+    基準座標を左右反転
+*/
+function getPhase4HorizontalPoint(
+    x,
+    y
+) {
+
+    if (
+        phase4HorizontalWestToEast ===
+        false
+    ) {
+        return {
+            x: mirrorPhase4X(x),
+            y: y
+        };
+    }
+
+    return {
+        x: x,
+        y: y
+    };
+}
+
+
+/*
+    =========================
+    6人
+    エラプ③ → 横エクサ待機
+    =========================
+
+    西→東
+    (250,63)
+
+    東→西
+    左右反転
+*/
+function movePhase4NorthSixToHorizontalWait() {
+
+    const target =
+        getPhase4HorizontalPoint(
+            250,
+            63
+        );
+
+    getPhase4NorthSixMembers()
+        .forEach(member => {
+
+            if (
+                member.role ===
+                controlledRole
+            ) {
+                return;
+            }
+
+            const actor =
+                actorStates[
+                    member.role
+                ];
+
+            if (!actor) {
+                return;
+            }
+
+            actor.targetX =
+                target.x;
+
+            actor.targetY =
+                target.y;
+        });
+}
+
+
+/*
+    =========================
+    エアロガ
+    ④到着後 → 横エクサ待機
+
+    6人の待機位置を
+    Y軸反転
+    =========================
+
+    西→東
+    (250,417)
+*/
+function movePhase4AeroToHorizontalWait(
+    member
+) {
+
+    if (!member) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const target =
+        getPhase4HorizontalPoint(
+            250,
+            417
+        );
+
+    actor.targetX =
+        target.x;
+
+    actor.targetY =
+        target.y;
+}
+
+
+/*
+    エアロガ担当が④へ着くまで待つ。
+
+    さらに3回目時計が終わってから
+    横エクサ待機位置へ進む。
+*/
+function waitPhase4AeroFourthArrival(
+    member
+) {
+
+    if (!member) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    const route =
+        getPhase4AeroRoute(
+            member
+        );
+
+    if (
+        !actor ||
+        !route
+    ) {
+        return;
+    }
+
+    const checkTimer =
+        setInterval(
+            function() {
+
+                const dx =
+                    actor.x -
+                    route.fourth.x;
+
+                const dy =
+                    actor.y -
+                    route.fourth.y;
+
+                const distance =
+                    Math.sqrt(
+                        dx * dx +
+                        dy * dy
+                    );
+
+                /*
+                    ④に着くまでは
+                    絶対に次へ行かない
+                */
+                if (
+                    distance > 1
+                ) {
+                    return;
+                }
+
+                /*
+                    3回目時計終了前なら待つ
+                */
+                if (
+                    !phase4ThirdClockFinished
+                ) {
+                    return;
+                }
+
+                clearInterval(
+                    checkTimer
+                );
+
+
+                /*
+                    横2発目がまだなら、
+                    まず通常の待機位置へ
+                */
+                if (
+                    !phase4HorizontalSecondFinished
+                ) {
+
+                    movePhase4AeroToHorizontalWait(
+                        member
+                    );
+
+                    return;
+                }
+
+
+                /*
+                    ④到着時点ですでに
+                    横2発目が終わっていた場合。
+
+                    待機位置を飛ばさず、
+                    236,406相当
+                    ↓
+                    228,252相当
+                    の順で移動。
+                */
+                const second =
+                    getPhase4HorizontalPoint(
+                        236,
+                        406
+                    );
+
+                const final =
+                    getPhase4HorizontalPoint(
+                        228,
+                        252
+                    );
+
+                movePhase4MemberViaPoint(
+                    member,
+                    second,
+                    final
+                );
+
+            },
+            50
+        );
+}
+
+
+/*
+    =========================
+    横エクサ2発目終了後
+
+    6人
+    (236,74)
+
+    エアロ
+    (236,406)
+
+    に一度入り、
+    到着したら共通地点
+    (228,252)
+    へ進む
+    =========================
+*/
+function movePhase4AfterHorizontalSecondExplosion() {
+
+    /*
+        =========================
+        北側6人
+        =========================
+    */
+    getPhase4NorthSixMembers()
+        .forEach(member => {
+
+            /*
+                青持ちはここでは動かさない。
+
+                横エクサ専用の
+                回避処理に任せる。
+            */
+            if (
+                isPhase4BlueMember(
+                    member
+                )
+            ) {
+                return;
+            }
+
+
+            const second =
+                getPhase4HorizontalPoint(
+                    236,
+                    74
+                );
+
+            const final =
+                getPhase4HorizontalPoint(
+                    228,
+                    252
+                );
+
+            movePhase4MemberViaPoint(
+                member,
+                second,
+                final
+            );
+        });
+
+
+    /*
+        =========================
+        エアロガ2人
+        =========================
+    */
+    getPhase4AeroMembers()
+        .forEach(member => {
+
+            /*
+                青持ちなら
+                横エクサ専用処理へ
+            */
+            if (
+                isPhase4BlueMember(
+                    member
+                )
+            ) {
+                return;
+            }
+
+
+            const second =
+                getPhase4HorizontalPoint(
+                    236,
+                    406
+                );
+
+            const final =
+                getPhase4HorizontalPoint(
+                    228,
+                    252
+                );
+
+            movePhase4MemberViaPoint(
+                member,
+                second,
+                final
+            );
+        });
+}
+
+
+/*
+    中継地点まで移動
+    ↓
+    到着したら次の地点へ移動
+*/
+function movePhase4MemberViaPoint(
+    member,
+    via,
+    final
+) {
+
+    if (!member) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    actor.targetX =
+        via.x;
+
+    actor.targetY =
+        via.y;
+
+    const checkTimer =
+        setInterval(
+            function() {
+
+                const dx =
+                    actor.x -
+                    via.x;
+
+                const dy =
+                    actor.y -
+                    via.y;
+
+                const distance =
+                    Math.sqrt(
+                        dx * dx +
+                        dy * dy
+                    );
+
+                if (
+                    distance > 1
+                ) {
+                    return;
+                }
+
+                clearInterval(
+                    checkTimer
+                );
+
+                actor.targetX =
+                    final.x;
+
+                actor.targetY =
+                    final.y;
+
+            },
+            50
+        );
+}
+/*
+    =========================
+    P4 北側6人
+    ホーリー処理後
+    → エラプション③へ集合
+    =========================
+*/
+function movePhase4NorthSixToEruptionThird() {
+
+    const pattern =
+        phase4TimeCrystalData
+            .patterns[
+                phase4TimeCrystalPatternIndex
+            ];
+
+    if (!pattern) {
+        return;
+    }
+
+    /*
+        北側の青時計で左右決定
+    */
+    const blueIsWest =
+        pattern.blueStart === "northWest" ||
+        pattern.blueEnd === "northWest";
+
+    const target =
+        blueIsWest
+            ? phase4EruptionRoute.westThird
+            : phase4EruptionRoute.eastThird;
+
+
+    /*
+        エアロガ2人以外の6人
+    */
+    getPhase4NorthSixMembers()
+        .forEach(member => {
+
+            if (
+                member.role ===
+                controlledRole
+            ) {
+                return;
+            }
+
+            const actor =
+                actorStates[
+                    member.role
+                ];
+
+            if (!actor) {
+                return;
+            }
+
+            actor.targetX =
+                target.x;
+
+            actor.targetY =
+                target.y;
+        });
+}
+
+/*
+    =========================
+    P4 青番号
+    → 回収する青球の生成者
+    =========================
+*/
+function getPhase4BlueOrbSourceMarker(
+    blueNumber
+) {
+
+    switch (
+        Number(blueNumber)
+    ) {
+
+        /*
+            青1
+            → バインド2
+        */
+        case 1:
+            return "chain2";
+
+
+        /*
+            青2
+            → ストップ2
+        */
+        case 2:
+            return "stop2";
+
+
+        /*
+            青3
+            → ストップ1
+        */
+        case 3:
+            return "stop1";
+
+
+        /*
+            青4
+            → バインド1
+        */
+        case 4:
+            return "chain1";
+
+
+        default:
+            return null;
+    }
+}
+
+
+/*
+    =========================
+    青持ち本人が
+    回収するべき青球を取得
+    =========================
+*/
+function getPhase4AssignedBlueOrb(
+    member
+) {
+
+    if (
+        !member ||
+        !member.phase4BlueNumber
+    ) {
+        return null;
+    }
+
+
+    /*
+        青番号から
+        必要な生成者を取得
+    */
+    const sourceMarker =
+        getPhase4BlueOrbSourceMarker(
+            member.phase4BlueNumber
+        );
+
+    if (!sourceMarker) {
+        return null;
+    }
+
+
+    /*
+        フィールド上の青球を取得
+    */
+    const orbs =
+        Array.from(
+            field.querySelectorAll(
+                ".phase4-blue-orb"
+            )
+        );
+
+
+    /*
+        指定された赤担当が
+        作った青球を探す
+    */
+    return (
+        orbs.find(
+            orb =>
+                orb.dataset
+                    .sourceRedMarker ===
+                sourceMarker
+        ) ||
+        null
+    );
+}
+/*
+    =========================
+    P4 青デバフ持ち判定
+    =========================
+*/
+function isPhase4BlueMember(
+    member
+) {
+
+    if (!member) {
+        return false;
+    }
+
+    return member.debuffs.some(
+        debuff =>
+            debuff.type === "blue"
+    );
+}
+/*
+    =========================
+    P4 青持ちNPC
+
+    横エクサが爆発したら
+    その爆発跡へ移動
+    =========================
+*/
+function movePhase4BlueMembersIntoHorizontalExaWake(
+    explodedColumn,
+    nextColumn = null
+) {
+
+    const targetX =
+        explodedColumn * 120 + 60;
+
+
+    party.forEach(member => {
+
+        if (
+            !isPhase4BlueMember(
+                member
+            )
+        ) {
+            return;
+        }
+
+
+        if (
+            member.role ===
+            controlledRole
+        ) {
+            return;
+        }
+
+
+        /*
+            この爆発を待っていた人だけ動かす。
+
+            最初の2発目だけは
+            waiting情報がまだ無いので許可。
+        */
+        if (
+            member.phase4WaitingHorizontalColumn !==
+                undefined &&
+            member.phase4WaitingHorizontalColumn !==
+                null &&
+            member.phase4WaitingHorizontalColumn !==
+                explodedColumn
+        ) {
+            return;
+        }
+
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+
+        member.phase4WaitingHorizontalColumn =
+            null;
+
+
+        /*
+            爆発跡へ入る
+        */
+        actor.targetX =
+            targetX;
+
+        actor.targetY =
+            actor.y;
+
+
+        const checkTimer =
+            setInterval(
+                function() {
+
+                    if (
+                        !isPhase4BlueMember(
+                            member
+                        )
+                    ) {
+
+                        clearInterval(
+                            checkTimer
+                        );
+
+                        return;
+                    }
+
+
+                    const distance =
+                        Math.abs(
+                            actor.x -
+                            targetX
+                        );
+
+
+                    if (
+                        distance > 2
+                    ) {
+                        return;
+                    }
+
+
+                    clearInterval(
+                        checkTimer
+                    );
+
+
+                    /*
+                        次の横エクサがまだある
+                    */
+                    if (
+                        nextColumn !== null
+                    ) {
+
+                        decidePhase4BlueHorizontalMovement(
+                            member,
+                            nextColumn
+                        );
+
+                        return;
+                    }
+
+
+                    /*
+                        横エクサ終了
+                        → 青球へ
+                    */
+                    movePhase4BlueMemberToAssignedOrb(
+                        member
+                    );
+
+                },
+                50
+            );
+    });
+}
+/*
+    =========================
+    青持ちNPC
+    担当青球へ向かう
+    =========================
+*/
+function movePhase4BlueMemberToAssignedOrb(
+    member
+) {
+
+    if (!member) {
+        return;
+    }
+
+
+    /*
+        YOUは自動操作しない
+    */
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+
+    /*
+        もう青を回収済み
+    */
+    if (
+        !isPhase4BlueMember(
+            member
+        )
+    ) {
+
+        member.phase4BlueOrbRetryPending =
+            false;
+
+        return;
+    }
+
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+
+    /*
+        青番号に対応する
+        担当青球を取得
+    */
+    const orb =
+        getPhase4AssignedBlueOrb(
+            member
+        );
+
+
+    /*
+        =========================
+        担当青球がまだ出ていない
+
+        今まではここで終了していた。
+
+        100ms後にもう一度探す。
+        =========================
+    */
+    if (
+        !orb ||
+        !orb.isConnected
+    ) {
+
+        if (
+            member.phase4BlueOrbRetryPending
+        ) {
+            return;
+        }
+
+
+        member.phase4BlueOrbRetryPending =
+            true;
+
+
+        setTimeout(
+            function() {
+
+                member.phase4BlueOrbRetryPending =
+                    false;
+
+                movePhase4BlueMemberToAssignedOrb(
+                    member
+                );
+
+            },
+            100
+        );
+
+
+        return;
+    }
+
+
+    /*
+        担当青球を発見したので
+        再確認待ちは終了
+    */
+    member.phase4BlueOrbRetryPending =
+        false;
+
+
+    const orbX =
+        parseFloat(
+            orb.style.left
+        );
+
+    const orbY =
+        parseFloat(
+            orb.style.top
+        );
+
+
+    actor.targetX =
+        orbX;
+
+    actor.targetY =
+        orbY;
+
+
+    console.log(
+        "担当青球へ移動:",
+        member.role,
+        "青",
+        member.phase4BlueNumber,
+        "→",
+        orb.dataset.sourceRedMarker,
+        orbX,
+        orbY
+    );
+}
+/*
+    =========================
+    青持ち4人
+    担当青球への移動開始
+    =========================
+*/
+function startPhase4BlueOrbCollectionMovement() {
+
+    party.forEach(member => {
+
+        if (
+            !isPhase4BlueMember(
+                member
+            )
+        ) {
+            return;
+        }
+
+        movePhase4BlueMemberToAssignedOrb(
+            member
+        );
+    });
+}
+/*
+    =========================
+    担当青球が
+    指定した横エクサ列より
+    進行方向側にあるか
+    =========================
+*/
+function doesPhase4BlueOrbNeedNextHorizontalExa(
+    member,
+    nextColumn
+) {
+
+    const orb =
+        getPhase4AssignedBlueOrb(
+            member
+        );
+
+    if (
+        !orb ||
+        !orb.isConnected
+    ) {
+        return false;
+    }
+
+
+    const orbX =
+        parseFloat(
+            orb.style.left
+        );
+
+
+    /*
+        次エクサ列の範囲
+    */
+    const centerX =
+        nextColumn * 120 + 60;
+
+    const left =
+        centerX - 60;
+
+    const right =
+        centerX + 60;
+
+
+    /*
+        西 → 東エクサ
+    */
+    if (
+        phase4HorizontalWestToEast ===
+        true
+    ) {
+
+        return (
+            orbX >= left
+        );
+    }
+
+
+    /*
+        東 → 西エクサ
+    */
+    if (
+        phase4HorizontalWestToEast ===
+        false
+    ) {
+
+        return (
+            orbX <= right
+        );
+    }
+
+
+    return false;
+}
+/*
+    =========================
+    青持ちNPC
+
+    次の横エクサが必要なら待つ。
+    必要なければ担当青球へ行く。
+    =========================
+*/
+function decidePhase4BlueHorizontalMovement(
+    member,
+    nextColumn
+) {
+
+    if (
+        !isPhase4BlueMember(
+            member
+        )
+    ) {
+        return;
+    }
+
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+
+    const needsNextExa =
+        doesPhase4BlueOrbNeedNextHorizontalExa(
+            member,
+            nextColumn
+        );
+
+
+    /*
+        次エクサを越える必要なし
+        → 青球へ直行
+    */
+    if (!needsNextExa) {
+
+        member.phase4WaitingHorizontalColumn =
+            null;
+
+        movePhase4BlueMemberToAssignedOrb(
+            member
+        );
+
+        return;
+    }
+
+
+    /*
+        次エクサを越える必要あり。
+
+        今いる場所で待機。
+    */
+    member.phase4WaitingHorizontalColumn =
+        nextColumn;
+
+    actor.targetX =
+        actor.x;
+
+    actor.targetY =
+        actor.y;
+
+
+    console.log(
+        "青持ち横エクサ待機:",
+        member.role,
+        "次:",
+        nextColumn
+    );
+}
+/*
+    =========================
+    P4 縦エクサ状態
+    =========================
+*/
+
+/*
+    true  = 北 → 南
+    false = 南 → 北
+    null  = まだ開始していない
+*/
+let phase4VerticalNorthToSouth =
+    null;
+
+
+/*
+    現在予兆が出ている行
+
+    0 = 一番北
+    1 = 北寄り
+    2 = 南寄り
+    3 = 一番南
+
+    null = 縦エクサ終了
+*/
+let phase4VerticalCurrentDangerRow =
+    null;
+
+    /*
+    =========================
+    赤17＋ブリザガ
+
+    白龍接触済み
+    ＋
+    ブリザガ残り0.2秒以下
+
+    の両方を満たしたら
+    エラプション②へ移動
+    =========================
+*/
+function updatePhase4Red17BlizzardMovement() {
+
+    party.forEach(member => {
+
+        /*
+            白龍にまだ触れていない
+        */
+        if (
+            !member.phase4Red17DragonTouched
+        ) {
+            return;
+        }
+
+
+        /*
+            すでに移動開始済み
+        */
+        if (
+            member.phase4Red17StartedEruptionMove
+        ) {
+            return;
+        }
+
+
+        /*
+            現在のブリザガを取得
+        */
+        const blizzardDebuff =
+            member.debuffs.find(
+                debuff =>
+                    debuff.type ===
+                    "blizzard"
+            );
+
+
+        if (!blizzardDebuff) {
+            return;
+        }
+
+
+        /*
+            まだ0.2秒より多く残っている
+        */
+        if (
+            blizzardDebuff.time > 0.2
+        ) {
+            return;
+        }
+
+
+        /*
+            =========================
+            条件成立
+
+            白龍接触済み
+            ＋
+            ブリザガ残り0.2秒以下
+            =========================
+        */
+        member.phase4Red17StartedEruptionMove =
+            true;
+
+
+        movePhase4Red17ToEruption(
+            member
+        );
+
+
+        console.log(
+            "赤17ブリザガ移動開始:",
+            member.role,
+            "ブリザガ残り:",
+            blizzardDebuff.time
+        );
+    });
+}
+function doesPhase4BlueOrbNeedNextVerticalExa(
+    member,
+    nextRow
+) {
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return false;
+    }
+
+
+    const orb =
+        getPhase4AssignedBlueOrb(
+            member
+        );
+
+    if (!orb) {
+        return false;
+    }
+
+
+    const orbY =
+        parseFloat(
+            orb.style.top
+        );
+
+
+    /*
+        縦エクサ1行の範囲
+
+        row 0 : Y   0 ～ 120
+        row 1 : Y 120 ～ 240
+        row 2 : Y 240 ～ 360
+        row 3 : Y 360 ～ 480
+    */
+    const rowMinY =
+        nextRow * 120;
+
+    const rowMaxY =
+        rowMinY + 120;
+
+
+    /*
+        NPCと担当青玉が
+        このエクサ行を挟んでいるか確認
+    */
+    const actorIsNorth =
+        actor.y < rowMinY;
+
+    const actorIsSouth =
+        actor.y > rowMaxY;
+
+    const orbIsNorth =
+        orbY < rowMinY;
+
+    const orbIsSouth =
+        orbY > rowMaxY;
+
+
+    /*
+        北側 → 南側
+        または
+        南側 → 北側
+
+        なら、この行を越える必要あり
+    */
+    return (
+        actorIsNorth &&
+        orbIsSouth
+    ) || (
+        actorIsSouth &&
+        orbIsNorth
+    );
+}
+function decidePhase4BlueVerticalMovement(
+    member,
+    nextRow
+) {
+
+    if (
+        !isPhase4BlueMember(
+            member
+        )
+    ) {
+        return;
+    }
+
+    if (
+        member.role ===
+        controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const needsNextExa =
+        doesPhase4BlueOrbNeedNextVerticalExa(
+            member,
+            nextRow
+        );
+
+    /*
+        次の縦エクサを越える必要なし
+    */
+    if (!needsNextExa) {
+
+        member.phase4WaitingVerticalRow =
+            null;
+
+        console.log(
+            "青持ち縦エクサ待機不要:",
+            member.role,
+            "次:",
+            nextRow
+        );
+
+        return;
+    }
+
+    /*
+        次の縦エクサを越える必要あり。
+
+        まず「何行目を待つか」は記録する。
+    */
+    member.phase4WaitingVerticalRow =
+        nextRow;
+
+    /*
+        横エクサ処理中なら、
+        縦エクサから移動命令は出さない。
+    */
+    if (
+        isPhase4BlueBusyWithHorizontalExa(
+            member
+        )
+    ) {
+
+        console.log(
+            "青持ち縦エクサ保留（横処理中）:",
+            member.role,
+            "縦:",
+            nextRow
+        );
+
+        return;
+    }
+
+    console.log(
+        "青持ち縦エクサ待機可能:",
+        member.role,
+        "次:",
+        nextRow
+    );
+}
+
+function isPhase4BlueBusyWithHorizontalExa(
+    member
+) {
+
+    if (!member) {
+        return false;
+    }
+
+    return (
+        member.phase4WaitingHorizontalColumn !==
+            undefined &&
+        member.phase4WaitingHorizontalColumn !==
+            null
+    );
+}
+
+function movePhase4BlueMembersIntoVerticalExaWake(
+    explodedRow
+) {
+
+    const targetY =
+        explodedRow * 120 + 60;
+
+    party.forEach(member => {
+
+        if (
+            !isPhase4BlueMember(
+                member
+            )
+        ) {
+            return;
+        }
+
+        if (
+            member.role ===
+            controlledRole
+        ) {
+            return;
+        }
+
+        /*
+            この縦エクサを
+            待っている人だけ対象
+        */
+        if (
+            member.phase4WaitingVerticalRow !==
+            explodedRow
+        ) {
+            return;
+        }
+
+        /*
+            横エクサ処理中なら
+            まだ縦側から動かさない
+        */
+        if (
+            isPhase4BlueBusyWithHorizontalExa(
+                member
+            )
+        ) {
+            console.log(
+                "縦エクサ爆発済み・横処理待ち:",
+                member.role,
+                "縦:",
+                explodedRow
+            );
+
+            return;
+        }
+
+        const actor =
+            actorStates[
+                member.role
+            ];
+
+        if (!actor) {
+            return;
+        }
+
+        /*
+            爆発した行の中央へ入る。
+
+            Xは現在位置を維持して、
+            Yだけ変更する。
+        */
+        actor.targetX =
+            actor.x;
+
+        actor.targetY =
+            targetY;
+
+        member.phase4WaitingVerticalRow =
+            null;
+
+        console.log(
+            "青持ち縦エクサ爆発跡へ:",
+            member.role,
+            "行:",
+            explodedRow,
+            "目的地:",
+            actor.targetX,
+            actor.targetY
+        );
+    });
+}
+
+/*
+    =========================
+    P4 リセット用
+    タイマー管理
+    =========================
+*/
+
+let phase4TimeoutIds = [];
+
+/*
+    P4専用 setTimeout
+
+    今後P4で時間予約するときは
+    setTimeoutではなく
+    この関数を使う。
+*/
+function setPhase4Timeout(
+    callback,
+    delay
+) {
+
+    const timeoutId =
+        setTimeout(
+            function() {
+
+                /*
+                    実行済みIDを
+                    管理配列から削除
+                */
+                phase4TimeoutIds =
+                    phase4TimeoutIds.filter(
+                        id =>
+                            id !== timeoutId
+                    );
+
+                callback();
+
+            },
+            delay
+        );
+
+    phase4TimeoutIds.push(
+        timeoutId
+    );
+
+    return timeoutId;
+}
+
+
+/*
+    P4で予約中の
+    setTimeoutをすべて停止
+*/
+function clearPhase4Timeouts() {
+
+    phase4TimeoutIds.forEach(
+        timeoutId => {
+
+            clearTimeout(
+                timeoutId
+            );
+
+        }
+    );
+
+    phase4TimeoutIds = [];
+}

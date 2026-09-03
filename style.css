@@ -941,14 +941,6 @@ body {
     background-size: cover;
 }
 
-/*
-    第1段階では時計と線の確認だけを行うため、
-    プレイヤー/NPCは一旦非表示。
-*/
-.field.p4-active #player,
-.field.p4-active .field-member {
-    display: none;
-}
 
 .p4-field-object {
     position: absolute;
@@ -976,6 +968,73 @@ body {
     stroke-linecap: round;
 
     filter: drop-shadow(0 0 5px rgba(57, 200, 255, 0.9));
+}
+
+/*
+    P4時間結晶
+    時計の円範囲攻撃
+
+    今は大きさ確認用。
+*/
+.p4-clock-explosion {
+    fill: rgba(255, 210, 70, 0.42);
+
+    stroke: rgba(
+        255,
+        235,
+        140,
+        0.95
+    );
+
+    stroke-width: 4;
+
+    opacity: 0;
+
+    pointer-events: none;
+
+    filter:
+        drop-shadow(
+            0 0 12px
+            rgba(255, 205, 60, 0.85)
+        );
+
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+
+/*
+    爆発確認ボタンを押した時だけ表示。
+*/
+.p4-clock-explosion.active {
+    animation:
+        p4-clock-explosion-test
+        1.2s
+        ease-out
+        forwards;
+}
+
+
+@keyframes p4-clock-explosion-test {
+    0% {
+        opacity: 0;
+        transform: scale(0.86);
+    }
+
+    15% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    75% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1);
+    }
 }
 
 .p4-clock-outer {
@@ -1036,4 +1095,742 @@ body {
 
     color: #bbbbbb;
     font-size: 14px;
+}
+
+/* P4 青デバフ 1～4マーカー */
+.phase4-blue-number {
+    position: absolute;
+
+    left: 50%;
+    top: -30px;
+
+    transform: translateX(-50%);
+
+    width: 24px;
+    height: 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #ffd84d;
+    border: 2px solid #ffffff;
+
+    color: #111111;
+    font-size: 14px;
+    font-weight: bold;
+
+    z-index: 20;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 赤担当マーカー
+   ========================= */
+
+.phase4-red-marker {
+    position: absolute;
+
+    left: 50%;
+    top: -34px;
+
+    transform: translateX(-50%);
+
+    min-width: 28px;
+    height: 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    gap: 2px;
+
+    padding: 0 4px;
+
+    border-radius: 6px;
+
+    font-weight: bold;
+
+    z-index: 20;
+
+    pointer-events: none;
+}
+
+
+/* 鎖マーカー */
+
+.phase4-chain-marker {
+    background: #6b4ca5;
+    border: 2px solid #ffffff;
+
+    color: #ffffff;
+}
+
+
+/* 禁止マーカー */
+
+.phase4-stop-marker {
+    background: #c93b3b;
+    border: 2px solid #ffffff;
+
+    color: #ffffff;
+}
+
+
+.phase4-marker-symbol {
+    font-size: 15px;
+    line-height: 1;
+}
+
+
+.phase4-marker-number {
+    font-size: 14px;
+    line-height: 1;
+}
+/* =========================
+   P4 リターン保存地点
+   ========================= */
+
+.phase4-return-marker {
+    position: absolute;
+
+    transform:
+        translate(-50%, -50%)
+        rotate(-90deg);
+
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 28px;
+    font-weight: bold;
+
+    color: #ffffff;
+
+    background:
+        rgba(80, 160, 255, 0.28);
+
+    border:
+        2px solid rgba(180, 220, 255, 0.9);
+
+    border-radius: 50%;
+
+    text-shadow:
+        0 0 4px #000000,
+        0 0 8px #4da6ff;
+
+    box-shadow:
+        0 0 8px rgba(80, 160, 255, 0.8);
+
+    /*
+        キャラクターの下に置きつつ、
+        床背景よりは上に表示
+    */
+    z-index: 4;
+
+    pointer-events: none;
+}
+.phase4-blizzard-aoe {
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 290px;
+    height: 290px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    /*
+        外周半径145
+        中心側は透明にして
+        ドーナツAoEにする
+    */
+    background:
+        radial-gradient(
+            circle,
+            transparent 0px,
+            transparent 55px,
+            rgba(120, 190, 255, 0.45) 56px,
+            rgba(120, 190, 255, 0.45) 145px
+        );
+
+    border:
+        2px solid rgba(180, 230, 255, 0.8);
+
+    box-sizing: border-box;
+
+    z-index: 6;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 エアロガ
+   ========================= */
+
+.phase4-aero-aoe {
+    position: absolute;
+
+    width: 290px;
+    height: 290px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background:
+        rgba(100, 255, 160, 0.32);
+
+    border:
+        2px solid rgba(160, 255, 200, 0.9);
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 12px
+        rgba(100, 255, 160, 0.6);
+
+    z-index: 15;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 テスト設定
+   ========================= */
+
+.phase4-test-row {
+    margin-top: 8px;
+
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+}
+
+.phase4-test-select {
+    padding: 5px 8px;
+
+    border-radius: 5px;
+
+    background: #202632;
+
+    color: #ffffff;
+
+    border:
+        1px solid #778090;
+}
+
+.phase4-test-note {
+    font-size: 12px;
+
+    opacity: 0.7;
+}
+/* =========================
+   P4 エラプション
+   ========================= */
+
+.phase4-eruption-aoe {
+    position: absolute;
+
+    width: 140px;
+    height: 140px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    /*
+        エラプション：紫
+    */
+    background:
+        rgba(170, 70, 255, 0.55);
+
+    border:
+        3px solid
+        rgba(225, 175, 255, 1);
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 10px rgba(180, 80, 255, 1),
+        0 0 22px rgba(130, 40, 220, 0.85);
+
+    /*
+        YOUの上からでも
+        確認できるように高め
+    */
+    z-index: 25;
+
+    pointer-events: none;
+}
+
+/* P4 判定欄を強制的に見やすくするテスト */
+.phase4-fail-log-box {
+    margin-top: 16px;
+    padding: 12px;
+
+    border: 2px solid #ff6666;
+
+    background: rgba(80, 0, 0, 0.8);
+
+    min-height: 60px;
+
+    position: relative;
+    z-index: 50;
+}
+
+#phase4-fail-log {
+    color: #ffffff;
+    font-size: 14px;
+}
+/* =========================
+   P4 判定欄
+   P4以外では非表示
+   ========================= */
+
+.phase4-fail-log-box {
+    display: none;
+}
+/* =========================
+   P4 ウォタガ
+   4人頭割り
+   ========================= */
+
+.phase4-water-aoe {
+    position: absolute;
+
+    width: 140px;
+    height: 140px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background:
+        rgba(70, 150, 255, 0.35);
+
+    border:
+        3px solid
+        rgba(150, 210, 255, 0.95);
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 10px rgba(80, 170, 255, 0.9);
+
+    z-index: 25;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 ホーリー
+   頭割り
+   ========================= */
+
+.phase4-holy-aoe {
+    position: absolute;
+
+    width: 140px;
+    height: 140px;
+
+    transform:
+        translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background:
+        rgba(255, 245, 180, 0.38);
+
+    border:
+        3px solid
+        rgba(255, 250, 210, 1);
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 12px rgba(255, 245, 180, 1),
+        0 0 24px rgba(255, 220, 100, 0.75);
+
+    z-index: 25;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 白龍
+   仮表示
+   ========================= */
+
+.phase4-dragon-head {
+    position: absolute;
+
+    width: 46px;
+    height: 46px;
+
+    transform:
+        translate(-50%, -50%);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 30;
+
+    pointer-events: none;
+}
+
+.phase4-dragon-symbol {
+    font-size: 38px;
+
+    /*
+        白龍っぽく見せる
+    */
+    filter:
+        grayscale(1)
+        brightness(3);
+
+    transform:
+        rotate(-10deg);
+}
+/* =========================
+   P4 青玉
+   ========================= */
+
+.phase4-blue-orb {
+    position: absolute;
+
+    width: 28px;
+    height: 28px;
+
+    transform: translate(
+        -50%,
+        -50%
+    );
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(220, 245, 255, 1) 0%,
+            rgba(90, 190, 255, 1) 35%,
+            rgba(20, 90, 255, 0.9) 70%,
+            rgba(20, 70, 200, 0.3) 100%
+        );
+
+    border:
+        2px solid
+        rgba(170, 225, 255, 1);
+
+    box-shadow:
+        0 0 10px
+        rgba(90, 190, 255, 1),
+
+        0 0 22px
+        rgba(30, 100, 255, 0.8);
+
+    z-index: 28;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 白龍
+   赤接触時の大AoE
+   ========================= */
+
+.phase4-dragon-explosion {
+    position: absolute;
+
+    width: 290px;
+    height: 290px;
+
+    transform:
+        translate(
+            -50%,
+            -50%
+        );
+
+    border-radius: 50%;
+
+    background:
+        rgba(
+            120,
+            190,
+            255,
+            0.28
+        );
+
+    border:
+        3px solid
+        rgba(
+            190,
+            230,
+            255,
+            0.95
+        );
+
+    box-sizing: border-box;
+
+    box-shadow:
+        0 0 14px
+        rgba(
+            100,
+            190,
+            255,
+            0.9
+        );
+
+    z-index: 24;
+
+    pointer-events: none;
+}
+/* =========================
+   P4 横エクサ
+   ========================= */
+
+.phase4-exa-cell {
+    position: absolute;
+
+    box-sizing: border-box;
+
+    z-index: 20;
+
+    pointer-events: none;
+}
+
+
+/*
+    予兆
+
+    まだ被弾しない状態
+*/
+.phase4-exa-telegraph {
+    background:
+        rgba(
+            255,
+            170,
+            70,
+            0.18
+        );
+
+    border:
+        2px solid
+        rgba(
+            255,
+            190,
+            90,
+            0.75
+        );
+}
+
+
+/*
+    実際の爆発
+*/
+.phase4-exa-explosion {
+    background:
+        rgba(
+            255,
+            80,
+            40,
+            0.65
+        );
+
+    border:
+        3px solid
+        rgba(
+            255,
+            220,
+            150,
+            1
+        );
+
+    box-shadow:
+        inset 0 0 20px
+        rgba(
+            255,
+            220,
+            100,
+            0.8
+        );
+}
+/*
+    =========================
+    座標確認モード
+    =========================
+*/
+
+#coordinate-debug-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    width: 480px;
+    height: 480px;
+
+    z-index: 80;
+
+    pointer-events: none;
+}
+
+
+/*
+    グリッド線
+*/
+.coordinate-grid-line {
+    position: absolute;
+
+    background:
+        rgba(255, 255, 255, 0.25);
+
+    pointer-events: none;
+}
+
+.coordinate-grid-vertical {
+    top: 0;
+
+    width: 1px;
+    height: 480px;
+}
+
+.coordinate-grid-horizontal {
+    left: 0;
+
+    width: 480px;
+    height: 1px;
+}
+
+
+/*
+    40pxごとの数字
+*/
+.coordinate-grid-label {
+    position: absolute;
+
+    font-size: 10px;
+    line-height: 1;
+
+    color: white;
+
+    background:
+        rgba(0, 0, 0, 0.65);
+
+    padding: 2px 3px;
+
+    border-radius: 2px;
+
+    pointer-events: none;
+}
+
+.coordinate-grid-x-label {
+    top: 3px;
+}
+
+.coordinate-grid-y-label {
+    left: 3px;
+}
+
+
+/*
+    マウスの現在座標
+*/
+#coordinate-debug-display {
+    position: absolute;
+
+    left: 50%;
+    bottom: 8px;
+
+    transform:
+        translateX(-50%);
+
+    z-index: 100;
+
+    padding: 5px 10px;
+
+    background:
+        rgba(0, 0, 0, 0.85);
+
+    border:
+        1px solid white;
+
+    border-radius: 4px;
+
+    color: white;
+
+    font-size: 14px;
+    font-weight: bold;
+
+    pointer-events: none;
+}
+
+
+/*
+    クリック固定マーカー
+*/
+#coordinate-debug-pin {
+    position: absolute;
+
+    transform:
+        translate(-50%, -50%);
+
+    z-index: 101;
+
+    pointer-events: none;
+}
+
+.coordinate-debug-dot {
+    width: 12px;
+    height: 12px;
+
+    border-radius: 50%;
+
+    background: red;
+
+    border:
+        2px solid white;
+
+    box-sizing:
+        border-box;
+}
+
+.coordinate-debug-pin-label {
+    position: absolute;
+
+    left: 10px;
+    top: -8px;
+
+    white-space: nowrap;
+
+    padding: 3px 5px;
+
+    background:
+        rgba(0, 0, 0, 0.9);
+
+    border-radius: 3px;
+
+    color: white;
+
+    font-size: 12px;
+}
+
+
+/*
+    ON / OFFボタン
+*/
+#coordinate-debug-button {
+    margin-top: 8px;
+
+    padding: 6px 12px;
+
+    cursor: pointer;
 }

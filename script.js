@@ -1500,11 +1500,14 @@ function getAssignmentTypeLabel(
 ========================= */
 
 function selectPhase(phase) {
+
     selectedPhase = phase;
 
     phaseButtons.forEach(button => {
+
         const isSelected =
-            button.dataset.phase === selectedPhase;
+            button.dataset.phase ===
+            selectedPhase;
 
         button.classList.toggle(
             "active",
@@ -1515,9 +1518,30 @@ function selectPhase(phase) {
     phaseTitle.textContent =
         phaseData[selectedPhase].title;
 
+
+    /*
+        =========================
+        P4では一時停止を使わない
+        =========================
+    */
+    if (selectedPhase === "P4") {
+
+        pauseButton.style.display =
+            "none";
+
+    } else {
+
+        pauseButton.style.display =
+            "";
+    }
+
+
     resetBattleState();
+
     renderPhaseOptions();
+
     renderPhaseField();
+
     updateActionGuideVisibility();
 }
 
@@ -1531,8 +1555,51 @@ function renderPhase4Options() {
             phase4TimeCrystalPatternIndex
         ];
 
+    /*
+        P3と同じ操作プレイヤー選択
+    */
+    const roleButtonsHtml =
+        baseParty
+            .map(member => {
+
+                const activeClass =
+                    member.role === controlledRole
+                        ? "active"
+                        : "";
+
+                return `
+                    <button
+                        type="button"
+                        class="controlled-role-button ${activeClass}"
+                        data-controlled-role="${member.role}"
+                    >
+                        <span class="controlled-role-name">
+                            ${member.role}
+                        </span>
+
+                        <span class="controlled-job-name">
+                            ${member.job}
+                        </span>
+                    </button>
+                `;
+            })
+            .join("");
+
     phaseOptions.innerHTML = `
         <div class="phase-option-box phase4-option-box">
+
+            <div class="phase-option-section">
+
+                <div class="phase-option-heading">
+                    操作プレイヤー
+                </div>
+
+                <div class="controlled-role-buttons">
+                    ${roleButtonsHtml}
+                </div>
+
+            </div>
+
 
             <div class="phase-option-row">
 
@@ -1556,15 +1623,6 @@ function renderPhase4Options() {
                     class="option-button"
                 >
                     青線を再抽選
-                </button>
-
-
-                <button
-                    type="button"
-                    id="phase4-start-button"
-                    class="option-button"
-                >
-                    時間結晶スタート
                 </button>
 
             </div>
@@ -1639,7 +1697,35 @@ function renderPhase4Options() {
 
 
     /*
-        YOUデバフ選択状態を復元
+        =========================
+        操作プレイヤー変更
+        =========================
+    */
+    const controlledRoleButtons =
+        document.querySelectorAll(
+            ".controlled-role-button"
+        );
+
+    controlledRoleButtons.forEach(
+        button => {
+
+            button.addEventListener(
+                "click",
+                function() {
+
+                    selectControlledRole(
+                        this.dataset.controlledRole
+                    );
+                }
+            );
+        }
+    );
+
+
+    /*
+        =========================
+        YOUデバフ
+        =========================
     */
     const debuffSelect =
         document.getElementById(
@@ -1660,7 +1746,9 @@ function renderPhase4Options() {
 
 
     /*
-        青線の再抽選
+        =========================
+        青線再抽選
+        =========================
     */
     const rerollButton =
         document.getElementById(
@@ -1680,114 +1768,6 @@ function renderPhase4Options() {
 
             renderPhase4Options();
             renderPhaseField();
-        }
-    );
-
-
-    /*
-        時間結晶スタート
-    */
-    const startButton =
-        document.getElementById(
-            "phase4-start-button"
-        );
-
-    startButton.addEventListener(
-        "click",
-        function() {
-
-            /*
-                P4デバフ配布
-            */
-            /*
-               P4デバフ配布
-            */
-            phase4HorizontalWestToEast = null;
-            phase4ThirdClockFinished = false;
-            phase4HorizontalSecondFinished = false;
-
-        /*
-            白龍2体を初期位置へ再生成
-
-                前回の白龍が残っていても
-                renderPhase4Dragons() 内で削除してから
-               新しい2体を作り直す。
-                */
-            assignPhase4Debuffs();
-
-            /*
-            赤17＋ブリザガ
-            白龍ルート上へ移動開始
-            */
-            movePhase4Red17PlayersToDragonRoute();
-
-            /*
-            エラプション＋青40
-            青線側の「1」へ移動
-            */
-            movePhase4EruptionToFirstPosition();
-            movePhase4AeroToFirstPosition();
-            movePhase4SouthBlueToFirstPosition();
-
-            startPhase4Timer();
-
-
-            /*
-                開始から10秒後に
-                時計1回目を開始
-            */
-            setTimeout(
-    function() {
-
-        /*
-            ①黄色時計の開始と同時に
-            白龍2体も移動開始
-        */
-        triggerPhase4ExplosionSequence();
-
-        /*
-            白龍2体をこのタイミングで再生成
-        */
-        renderPhase4Dragons();
-
-        /*
-            生成した白龍を動かし始める
-        */
-        startPhase4DragonMovement();
-        },
-    10000
-);
-/*
-    =========================
-    P4 エクサ開始
-    =========================
-*/
-
-/*
-    P4 +17秒
-    横エクサ開始
-*/
-setTimeout(
-    function() {
-        startPhase4HorizontalExa();
-    },
-    17000
-);
-
-
-/*
-    P4 +24秒
-    縦エクサ開始
-
-    横3発目の爆発と
-    ほぼ同時に縦①予兆
-*/
-setTimeout(
-    function() {
-        startPhase4VerticalExa();
-    },
-    24000
-);
         }
     );
 }
@@ -4209,6 +4189,16 @@ function activatePhase4Return() {
 
         5秒後に保存地点へ強制帰還。
     */
+       /*
+        =========================
+        リターン設置完了
+
+        現在位置はすでに保存済みなので、
+        ここからNPCを最終散会へ動かす。
+        =========================
+    */
+    movePhase4NpcsToFinalSpread();
+    
     setTimeout(
         function() {
             executePhase4Return();
@@ -5000,7 +4990,23 @@ window.addEventListener(
 
 startButton.addEventListener(
     "click",
-    startTimer
+    function() {
+
+        /*
+            P4なら時間結晶開始
+        */
+        if (selectedPhase === "P4") {
+
+            startPhase4TimeCrystal();
+
+            return;
+        }
+
+        /*
+            P3などは従来処理
+        */
+        startTimer();
+    }
 );
 
 pauseButton.addEventListener(
@@ -6852,6 +6858,17 @@ function collectPhase4BlueOrb(
     renderFieldMembers();
 
     renderPhase4PlayerBlueNumber();
+
+
+    /*
+        =========================
+        青玉4個回収確認
+
+        全部なくなったら
+        リターン設置位置へ移動開始
+        =========================
+    */
+    checkPhase4AllBlueOrbsCollected();
 }
 /*
     =========================
@@ -7354,12 +7371,22 @@ function checkPhase4HorizontalExaHit(
         2;
 
 
-    party.forEach(member => {
+party.forEach(member => {
 
-        const actor =
-            actorStates[
-                member.role
-            ];
+    /*
+        P4の失敗判定は
+        YOUだけを対象にする。
+    */
+    if (
+        member.role !== controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
 
         if (!actor) {
             return;
@@ -7417,22 +7444,10 @@ function startPhase4VerticalExa() {
 
     /*
         方向をランダム決定
-
-        true
-            北 → 南
-
-        false
-            南 → 北
     */
     const northToSouth =
         Math.random() < 0.5;
 
-
-    /*
-        NPC側からも
-        縦エクサの方向を
-        確認できるように保存
-    */
     phase4VerticalNorthToSouth =
         northToSouth;
 
@@ -7456,22 +7471,23 @@ function startPhase4VerticalExa() {
     */
     phase4VerticalCurrentDangerRow =
         rowOrder[0];
+
+
     /*
-    青持ちNPCが
-    最初の縦エクサを越える必要があるか判定
+        1発目を越える必要があるか判定
     */
     party.forEach(member => {
 
-    decidePhase4BlueVerticalMovement(
-        member,
-        rowOrder[0]
-    );
+        decidePhase4BlueVerticalMovement(
+            member,
+            rowOrder[0]
+        );
 
     });
 
 
     /*
-        最初の予兆
+        1発目予兆
     */
     showPhase4VerticalExaRow(
         rowOrder[0]
@@ -7485,29 +7501,20 @@ function startPhase4VerticalExa() {
         function() {
 
             explodePhase4VerticalExaRow(
-            rowOrder[0]
-        );
+                rowOrder[0]
+            );
 
-        /*
-            1発目を待っていた青持ちNPCを
-            爆発跡へ入れる
-        */
-        movePhase4BlueMembersIntoVerticalExaWake(
-            rowOrder[0]
-        );
-
-        /*
-            次に危険なのは2発目
-        */
-        phase4VerticalCurrentDangerRow =
-            rowOrder[1];
+            movePhase4BlueMembersIntoVerticalExaWake(
+                rowOrder[0]
+            );
 
 
             /*
-                青持ちNPCについて
-                2発目の縦エクサを
-                越える必要があるか再判定
+                次は2発目
             */
+            phase4VerticalCurrentDangerRow =
+                rowOrder[1];
+
             party.forEach(member => {
 
                 decidePhase4BlueVerticalMovement(
@@ -7515,12 +7522,11 @@ function startPhase4VerticalExa() {
                     rowOrder[1]
                 );
 
-});
+            });
 
-
-showPhase4VerticalExaRow(
-    rowOrder[1]
-);
+            showPhase4VerticalExaRow(
+                rowOrder[1]
+            );
 
         },
         phase4ExaSettings
@@ -7538,13 +7544,25 @@ showPhase4VerticalExaRow(
                 rowOrder[1]
             );
 
+            movePhase4BlueMembersIntoVerticalExaWake(
+                rowOrder[1]
+            );
+
 
             /*
-                次に危険なのは3発目
+                次は3発目
             */
             phase4VerticalCurrentDangerRow =
                 rowOrder[2];
 
+            party.forEach(member => {
+
+                decidePhase4BlueVerticalMovement(
+                    member,
+                    rowOrder[2]
+                );
+
+            });
 
             showPhase4VerticalExaRow(
                 rowOrder[2]
@@ -7568,13 +7586,25 @@ showPhase4VerticalExaRow(
                 rowOrder[2]
             );
 
+            movePhase4BlueMembersIntoVerticalExaWake(
+                rowOrder[2]
+            );
+
 
             /*
-                次に危険なのは4発目
+                次は4発目
             */
             phase4VerticalCurrentDangerRow =
                 rowOrder[3];
 
+            party.forEach(member => {
+
+                decidePhase4BlueVerticalMovement(
+                    member,
+                    rowOrder[3]
+                );
+
+            });
 
             showPhase4VerticalExaRow(
                 rowOrder[3]
@@ -7595,6 +7625,10 @@ showPhase4VerticalExaRow(
         function() {
 
             explodePhase4VerticalExaRow(
+                rowOrder[3]
+            );
+
+            movePhase4BlueMembersIntoVerticalExaWake(
                 rowOrder[3]
             );
 
@@ -7779,12 +7813,22 @@ function checkPhase4VerticalExaHit(
         2;
 
 
-    party.forEach(member => {
+party.forEach(member => {
 
-        const actor =
-            actorStates[
-                member.role
-            ];
+    /*
+        P4の失敗判定は
+        YOUだけを対象にする。
+    */
+    if (
+        member.role !== controlledRole
+    ) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
 
         if (!actor) {
             return;
@@ -9765,21 +9809,6 @@ function movePhase4AfterHorizontalSecondExplosion() {
     getPhase4NorthSixMembers()
         .forEach(member => {
 
-            /*
-                青持ちはここでは動かさない。
-
-                横エクサ専用の
-                回避処理に任せる。
-            */
-            if (
-                isPhase4BlueMember(
-                    member
-                )
-            ) {
-                return;
-            }
-
-
             const second =
                 getPhase4HorizontalPoint(
                     236,
@@ -9791,6 +9820,18 @@ function movePhase4AfterHorizontalSecondExplosion() {
                     228,
                     252
                 );
+
+            /*
+                青持ちは中央復帰中にする
+            */
+            if (
+                isPhase4BlueMember(
+                    member
+                )
+            ) {
+                member.phase4ReturningToCenter =
+                    true;
+            }
 
             movePhase4MemberViaPoint(
                 member,
@@ -9808,19 +9849,6 @@ function movePhase4AfterHorizontalSecondExplosion() {
     getPhase4AeroMembers()
         .forEach(member => {
 
-            /*
-                青持ちなら
-                横エクサ専用処理へ
-            */
-            if (
-                isPhase4BlueMember(
-                    member
-                )
-            ) {
-                return;
-            }
-
-
             const second =
                 getPhase4HorizontalPoint(
                     236,
@@ -9832,6 +9860,18 @@ function movePhase4AfterHorizontalSecondExplosion() {
                     228,
                     252
                 );
+
+            /*
+                青持ちは中央復帰中にする
+            */
+            if (
+                isPhase4BlueMember(
+                    member
+                )
+            ) {
+                member.phase4ReturningToCenter =
+                    true;
+            }
 
             movePhase4MemberViaPoint(
                 member,
@@ -9912,6 +9952,61 @@ function movePhase4MemberViaPoint(
 
                 actor.targetY =
                     final.y;
+
+                /*
+                    最終地点への到着待ち
+                */
+                const finalCheckTimer =
+                    setInterval(
+                        function() {
+
+                            const finalDx =
+                                actor.x -
+                                final.x;
+
+                            const finalDy =
+                                actor.y -
+                                final.y;
+
+                            const finalDistance =
+                                Math.sqrt(
+                                    finalDx * finalDx +
+                                    finalDy * finalDy
+                                );
+
+                            if (
+                                finalDistance > 1
+                            ) {
+                                return;
+                            }
+
+                            clearInterval(
+                                finalCheckTimer
+                            );
+
+                            /*
+                                青持ちが中央に到着したら
+                                中央復帰中を解除
+                            */
+                            if (
+                                member.phase4ReturningToCenter
+                            ) {
+                                member.phase4ReturningToCenter =
+                                    false;
+
+                                console.log(
+                                    "中央復帰完了:",
+                                    member.role
+                                );
+
+                                movePhase4BlueMemberToAssignedOrb(
+                                    member
+                                );
+                            }
+
+                        },
+                        50
+                    );
 
             },
             50
@@ -10142,22 +10237,20 @@ function movePhase4BlueMembersIntoHorizontalExaWake(
         }
 
 
-        /*
-            この爆発を待っていた人だけ動かす。
+/*
+    本当にこの横エクサを
+    待っていた人だけ動かす。
 
-            最初の2発目だけは
-            waiting情報がまだ無いので許可。
-        */
-        if (
-            member.phase4WaitingHorizontalColumn !==
-                undefined &&
-            member.phase4WaitingHorizontalColumn !==
-                null &&
-            member.phase4WaitingHorizontalColumn !==
-                explodedColumn
-        ) {
-            return;
-        }
+    null / undefined の人は
+    すでに青玉へ向かっている可能性があるので
+    絶対に触らない。
+*/
+if (
+    member.phase4WaitingHorizontalColumn !==
+    explodedColumn
+) {
+    return;
+}
 
 
         const actor =
@@ -10263,6 +10356,20 @@ function movePhase4BlueMemberToAssignedOrb(
     if (!member) {
         return;
     }
+    /*
+    中央へ戻っている途中なら
+    青玉への移動命令を出さない
+*/
+if (
+    member.phase4ReturningToCenter
+) {
+    console.log(
+        "青玉移動保留・中央復帰中:",
+        member.role
+    );
+
+    return;
+}
 
 
     /*
@@ -10373,6 +10480,13 @@ function movePhase4BlueMemberToAssignedOrb(
         parseFloat(
             orb.style.top
         );
+        /*
+    TEST
+    青玉までの横エクサ危険判定
+*/
+checkPhase4BlueOrbHorizontalRoute(
+    member
+);
 
 
     actor.targetX =
@@ -11031,4 +11145,410 @@ function clearPhase4Timeouts() {
     );
 
     phase4TimeoutIds = [];
+}
+
+/*
+    =========================
+    青玉ルート
+    横エクサ危険判定 TEST
+    =========================
+*/
+function checkPhase4BlueOrbHorizontalRoute(
+    member
+) {
+
+    if (!member) {
+        return;
+    }
+
+    const actor =
+        actorStates[
+            member.role
+        ];
+
+    if (!actor) {
+        return;
+    }
+
+    const orb =
+        getPhase4AssignedBlueOrb(
+            member
+        );
+
+    if (
+        !orb ||
+        !orb.isConnected
+    ) {
+        return;
+    }
+
+    const orbX =
+        parseFloat(
+            orb.style.left
+        );
+
+    /*
+        現在表示されている
+        横エクサ予兆を取得
+    */
+    const horizontalTelegraphs =
+        field.querySelectorAll(
+            ".phase4-exa-cell.phase4-exa-telegraph[data-column]"
+        );
+
+    const dangerousColumns = [];
+
+    horizontalTelegraphs.forEach(
+        cell => {
+
+            const column =
+                Number(
+                    cell.dataset.column
+                );
+
+            const columnMinX =
+                column * 120;
+
+            const columnMaxX =
+                columnMinX + 120;
+
+            /*
+                現在地 → 青玉
+
+                このX方向の区間が
+                エクサ列と重なるか確認
+            */
+            const routeMinX =
+                Math.min(
+                    actor.x,
+                    orbX
+                );
+
+            const routeMaxX =
+                Math.max(
+                    actor.x,
+                    orbX
+                );
+
+            const crossesColumn =
+                routeMaxX >= columnMinX &&
+                routeMinX <= columnMaxX;
+
+            if (
+                crossesColumn
+            ) {
+                dangerousColumns.push(
+                    column
+                );
+            }
+        }
+    );
+
+    if (
+        dangerousColumns.length > 0
+    ) {
+
+        console.log(
+            "青玉ルート横エクサ危険:",
+            member.role,
+            "青",
+            member.phase4BlueNumber,
+            "列:",
+            dangerousColumns.join(","),
+            "現在X:",
+            Math.round(actor.x),
+            "青玉X:",
+            Math.round(orbX)
+        );
+
+        return;
+    }
+
+    console.log(
+        "青玉ルート横エクサ安全:",
+        member.role,
+        "青",
+        member.phase4BlueNumber,
+        "現在X:",
+        Math.round(actor.x),
+        "青玉X:",
+        Math.round(orbX)
+    );
+}
+
+/*
+    =========================
+    P4 時間結晶スタート
+    =========================
+*/
+function startPhase4TimeCrystal() {
+
+    if (selectedPhase !== "P4") {
+        return;
+    }
+
+    /*
+        P4開始状態
+    */
+    phase4HorizontalWestToEast = null;
+    phase4ThirdClockFinished = false;
+    phase4HorizontalSecondFinished = false;
+
+    /*
+        デバフ配布
+    */
+    assignPhase4Debuffs();
+
+    /*
+        NPC初動
+    */
+    movePhase4Red17PlayersToDragonRoute();
+
+    movePhase4EruptionToFirstPosition();
+
+    movePhase4AeroToFirstPosition();
+
+    movePhase4SouthBlueToFirstPosition();
+
+    /*
+        P4タイマー開始
+    */
+    startPhase4Timer();
+
+
+    /*
+        =========================
+        P4 +10秒
+
+        時計開始
+        白龍開始
+        =========================
+    */
+    setTimeout(
+        function() {
+
+            triggerPhase4ExplosionSequence();
+
+            renderPhase4Dragons();
+
+            startPhase4DragonMovement();
+        },
+        10000
+    );
+
+
+    /*
+        =========================
+        P4 +17秒
+        横エクサ開始
+        =========================
+    */
+    setTimeout(
+        function() {
+
+            startPhase4HorizontalExa();
+        },
+        17000
+    );
+
+
+    /*
+        =========================
+        P4 +24秒
+        縦エクサ開始
+        =========================
+    */
+    setTimeout(
+        function() {
+
+            startPhase4VerticalExa();
+        },
+        24000
+    );
+}
+
+/*
+    =========================
+    P4 リターン設置・最終散会
+    =========================
+
+    座標は北→南エクサ基準。
+
+    南→北の場合は
+    Y座標を 480 - Y で反転する。
+*/
+const phase4ReturnPlacementPositions = {
+
+    MT: { x: 160, y: 80 },
+    ST: { x: 320, y: 80 },
+
+    H1: { x: 240, y: 160 },
+    H2: { x: 240, y: 160 },
+
+    D1: { x: 240, y: 160 },
+    D2: { x: 240, y: 160 },
+    D3: { x: 240, y: 160 },
+    D4: { x: 240, y: 160 }
+};
+
+
+const phase4FinalSpreadPositions = {
+
+    MT: { x: 120, y: 80 },
+    ST: { x: 360, y: 80 },
+
+    H1: { x: 160, y: 160 },
+    H2: { x: 240, y: 200 },
+
+    D1: { x: 160, y: 340 },
+    D2: { x: 320, y: 320 },
+
+    D3: { x: 120, y: 240 },
+    D4: { x: 360, y: 240 }
+};
+
+
+/*
+    縦エクサ方向に合わせて
+    座標を上下反転する。
+*/
+function getPhase4VerticalMirroredPosition(
+    position
+) {
+
+    /*
+        北 → 南
+        指定座標をそのまま使う
+    */
+    if (
+        phase4VerticalNorthToSouth !== false
+    ) {
+        return {
+            x: position.x,
+            y: position.y
+        };
+    }
+
+
+    /*
+        南 → 北
+
+        フィールド中央 (240, 240) を基準に
+        X・Yの両方を反転する。
+    */
+    return {
+        x: 480 - position.x,
+        y: 480 - position.y
+    };
+}
+
+
+/*
+    NPC全員を
+    リターン設置位置へ移動させる。
+*/
+function movePhase4NpcsToReturnPlacement() {
+
+    party.forEach(member => {
+
+        /*
+            YOUは自分で操作する
+        */
+        if (
+            member.role === controlledRole
+        ) {
+            return;
+        }
+
+        const position =
+            phase4ReturnPlacementPositions[
+                member.role
+            ];
+
+        if (!position) {
+            return;
+        }
+
+        const target =
+            getPhase4VerticalMirroredPosition(
+                position
+            );
+
+        setActorTarget(
+            member.role,
+            target.x,
+            target.y
+        );
+    });
+
+    console.log(
+        "P4 NPC：リターン設置位置へ移動"
+    );
+}
+
+
+/*
+    NPC全員を
+    最終散会位置へ移動させる。
+*/
+function movePhase4NpcsToFinalSpread() {
+
+    party.forEach(member => {
+
+        /*
+            YOUは自分で操作する
+        */
+        if (
+            member.role === controlledRole
+        ) {
+            return;
+        }
+
+        const position =
+            phase4FinalSpreadPositions[
+                member.role
+            ];
+
+        if (!position) {
+            return;
+        }
+
+        const target =
+            getPhase4VerticalMirroredPosition(
+                position
+            );
+
+        setActorTarget(
+            member.role,
+            target.x,
+            target.y
+        );
+    });
+
+    console.log(
+        "P4 NPC：最終散会へ移動"
+    );
+}
+
+
+/*
+    青玉が全部なくなったか確認。
+
+    4個すべて回収されたら、
+    NPC全員がリターン設置位置へ向かう。
+*/
+function checkPhase4AllBlueOrbsCollected() {
+
+    const remainingOrbs =
+        field.querySelectorAll(
+            ".phase4-blue-orb"
+        );
+
+    if (
+        remainingOrbs.length !== 0
+    ) {
+        return;
+    }
+
+    movePhase4NpcsToReturnPlacement();
 }
